@@ -1,0 +1,359 @@
+/* ===== APP SHELL ===== */
+.app-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: var(--topbar-h) 1fr;
+  grid-template-areas:
+    "topbar"
+    "content";
+  height: 100%;
+  overflow: hidden;
+  transition: grid-template-columns var(--motion-base) var(--ease-out);
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-w) 1fr;
+    grid-template-areas:
+      "sidebar topbar"
+      "sidebar content";
+  }
+}
+
+/* ===== TOPBAR ===== */
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding-top: env(safe-area-inset-top);
+}
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1;
+  min-width: 0;
+}
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+}
+.topbar__title { display: flex; flex-direction: column; min-width: 0; }
+.topbar__title h1 {
+  font-size: var(--fs-md);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar__sub {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  font-weight: 500;
+  margin-top: 1px;
+}
+/* MOBILE: hide brand title "Chill Rental" — page subtitle (sub) sudah cukup sebagai context */
+@media (max-width: 700px) {
+  .topbar__title h1 { display: none; }
+  .topbar__sub {
+    font-size: var(--fs-sm);    /* bump sub jadi lebih prominent karena jadi judul utama */
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 0;
+  }
+}
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* R13: Quick action 'Rental Baru' di topbar */
+.topbar__quick-rental {
+  background: var(--brand);
+  color: var(--text-on-brand);
+}
+.topbar__quick-rental:hover { background: var(--brand-hover); }
+/* MOBILE: sembunyikan total tombol + Rental Baru — FAB di bottom tabbar sudah cover */
+@media (max-width: 700px) {
+  .topbar__quick-rental { display: none; }
+  /* "X aktif" chip jadi lebih compact di mobile */
+  #kpi-active {
+    font-size: var(--fs-xs);
+    padding: 6px 10px;
+    min-height: 32px;        /* naik dari 28px → 32px, lebih mudah di-tap */
+  }
+}
+/* Saat sidebar collapsed (desktop), label tetap muncul karena topbar tidak ikut collapse */
+.topbar__menu { display: inline-flex; }
+/* R12: hamburger sekarang juga muncul di desktop sebagai sidebar collapse toggle */
+@media (min-width: 900px) {
+  .topbar__menu { display: inline-flex; }
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border-subtle);
+  padding: var(--sp-5) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+@media (max-width: 899px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 280px;
+    z-index: 80;
+    transform: translateX(-100%);
+    transition: transform var(--motion-base) var(--ease-out);
+    box-shadow: var(--sh-lg);
+    padding-top: calc(var(--sp-5) + env(safe-area-inset-top));
+  }
+  .sidebar.is-open { transform: translateX(0); }
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  min-height: 44px;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.nav__item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.nav__item.is-active {
+  background: var(--brand-soft);
+  color: var(--brand-soft-text);
+}
+.nav__item.is-active svg { color: var(--brand); }
+
+.sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ===== R12: Sidebar Collapsed (desktop) ===== */
+@media (min-width: 900px) {
+  .app-shell.is-sidebar-collapsed {
+    grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+  }
+  .app-shell.is-sidebar-collapsed .sidebar {
+    padding-left: var(--sp-2);
+    padding-right: var(--sp-2);
+    overflow: hidden;
+  }
+  .app-shell.is-sidebar-collapsed .nav__item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    position: relative;
+  }
+  /* Hide labels (span elements) */
+  .app-shell.is-sidebar-collapsed .nav__item > span {
+    display: none;
+  }
+  /* Tooltip on hover when collapsed — show label as floating chip */
+  .app-shell.is-sidebar-collapsed .nav__item:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-primary);
+    color: var(--bg-elev);
+    padding: 4px 10px;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: var(--sh-sm);
+    pointer-events: none;
+  }
+  /* Hide footer content text but keep the dividers */
+  .app-shell.is-sidebar-collapsed .sidebar__footer {
+    padding: var(--sp-2) 0;
+  }
+  .app-shell.is-sidebar-collapsed .sidebar__footer .btn,
+  .app-shell.is-sidebar-collapsed .sidebar__footer .muted-xs {
+    display: none;
+  }
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 70;
+  animation: fadeIn var(--motion-base) var(--ease-out);
+}
+
+/* ===== CONTENT ===== */
+.content {
+  grid-area: content;
+  padding: var(--sp-5);
+  padding-bottom: calc(var(--tabbar-h) + var(--sp-7) + env(safe-area-inset-bottom));
+  max-width: var(--maxw-content);
+  width: 100%;
+  margin: 0 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+@media (min-width: 900px) {
+  .content {
+    padding: var(--sp-6) var(--sp-7);
+    padding-bottom: var(--sp-7);
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+  }
+}
+
+.page__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+.page__title {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 5vw, var(--fs-2xl)); /* shrink halus di 360px, full di 560px+ */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page__lede {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ===== BENTO GRID ===== */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--sp-4);
+}
+.bento > * {
+  grid-column: span 12;
+  min-width: 0;
+}
+@media (min-width: 600px) {
+  .bento > .span-3 { grid-column: span 6; }
+  .bento > .span-4 { grid-column: span 6; }
+  .bento > .span-6 { grid-column: span 12; }
+  .bento > .span-8 { grid-column: span 12; }
+  .bento > .span-12 { grid-column: span 12; }
+}
+@media (min-width: 1000px) {
+  .bento > .span-3 { grid-column: span 3; }
+  .bento > .span-4 { grid-column: span 4; }
+  .bento > .span-6 { grid-column: span 6; }
+  .bento > .span-8 { grid-column: span 8; }
+  .bento > .span-12 { grid-column: span 12; }
+}
+
+/* ===== TABBAR (mobile bottom nav) ===== */
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 60;
+}
+@media (min-width: 900px) {
+  .tabbar { display: none; }
+}
+.tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 56px;
+  min-height: 56px;        /* sudah memenuhi Apple HIG 44px */
+  padding: 8px 8px;        /* naik dari 6px → 8px, lebih nyaman di-tap */
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--r-md);
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar__item.is-active { color: var(--brand); }
+.tabbar__item:active { background: var(--bg-subtle); }
+
+.tabbar__fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  border: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 22px var(--brand-soft);
+  margin-top: -28px;
+  transition: transform var(--motion-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar__fab:active { transform: scale(0.92); }
+
+/* ===== Detail two-col on desktop ===== */
+.split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+}
+@media (min-width: 900px) {
+  .split { grid-template-columns: 1.2fr 1fr; }
+}
+
+/* Stack helpers */
+.stack { display: flex; flex-direction: column; gap: var(--sp-3); }
+.row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.row--between { justify-content: space-between; }
+.row--end { justify-content: flex-end; }

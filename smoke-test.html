@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chill Rental — Smoke Test Fase A v1.2</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 1000px; margin: 24px auto; padding: 16px; line-height: 1.55; color: #1a202c; }
+    h1 { color: #1f4e79; margin-bottom: 4px; }
+    h2 { color: #2e74b5; margin-top: 28px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; }
+    .case { background: #f7fafc; border-left: 4px solid #cbd5e0; padding: 8px 12px; margin: 4px 0; border-radius: 4px; font-size: 13px; }
+    .pass { border-color: #38a169; background: #f0fff4; }
+    .fail { border-color: #e53e3e; background: #fff5f5; }
+    .label { font-weight: 700; margin-right: 8px; }
+    code { background: #edf2f7; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    button { padding: 8px 16px; border-radius: 6px; border: none; background: #2e74b5; color: white; font-weight: 600; cursor: pointer; }
+    button:hover { background: #1f4e79; }
+    .row { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+    .summary { margin-top: 24px; padding: 16px; background: #ebf8ff; border-radius: 6px; }
+    .meta { font-size: 12px; color: #4a5568; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Smoke Test — Chill Rental Fase A v1.2</h1>
+  <p>Coverage: Surfrack, Cutoff 11 AM, Audit, Staff Mgmt, Multi-flag status, Passport, Edit, Motor unique, Modal.confirm fix. Buka <a href="index.html">aplikasi</a>.</p>
+
+  <div class="row">
+    <button id="run-all">▶ Run All Tests</button>
+    <button id="clear-storage" style="background:#e53e3e">Clear localStorage</button>
+    <span id="status" style="margin-left:auto;font-weight:700"></span>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="summary" id="summary" style="display:none">
+    <h2 style="border:none;margin-top:0">Hasil Akhir</h2>
+    <div id="summary-content"></div>
+  </div>
+
+  <script type="module">
+    const results = document.getElementById('results');
+    const summary = document.getElementById('summary');
+    const summaryContent = document.getElementById('summary-content');
+    const status = document.getElementById('status');
+
+    let pass = 0, fail = 0;
+    const log = (label, ok, detail = '') => {
+      const div = document.createElement('div');
+      div.className = 'case ' + (ok ? 'pass' : 'fail');
+      div.innerHTML = `
+        <span class="label">${ok ? '✓' : '✗'} ${label}</span>
+        ${detail ? `<div class="meta">${detail}</div>` : ''}
+      `;
+      results.appendChild(div);
+      if (ok) pass++; else fail++;
+    };
+    const section = (title) => {
+      const h = document.createElement('h2');
+      h.textContent = title;
+      results.appendChild(h);
+    };
+    const expectError = async (fn, expectedMsgPart, label) => {
+      try { await fn(); log(label + ' → no error thrown', false); }
+      catch (e) {
+        const ok = e.message.toLowerCase().includes(expectedMsgPart.toLowerCase());
+        log(label, ok, `got: "${e.message}" (expect contains: "${expectedMsgPart}")`);
+      }
+    };
+
+    document.getElementById('clear-storage').addEventListener('click', () => {
+      Object.keys(localStorage).filter(k => k.startsWith('chill_rental')).forEach(k => localStorage.removeItem(k));
+      alert('localStorage cleared. Reload page.');
+      location.reload();
+    });
+
+    document.getElementById('run-all').addEventListener('click', async () => {
+      results.innerHTML = '';
+      summary.style.display = 'none';
+      pass = 0; fail = 0;
+      status.textContent = 'Running...';
+
+      try {
+        // ============ MODULE LOAD ============
+        section('1. Module imports');
+        const utils = await import('./modules/utils.js');
+        log('utils.calcRentalDays exists', typeof utils.calcRentalDays === 'function');
+        log('utils.isEstimateExpired exists', typeof utils.isEstimateExpired === 'function');
+
+        const audit = await import('./modules/audit.js');
+        log('AuditManager.log exists', typeof audit.AuditManager.log === 'function');
+        log('AuditActions has MARK_PAID/SETTLED/DAMAGE', audit.AuditActions.MARK_PAID === 'mark-paid' && audit.AuditActions.MARK_OWNER_SETTLED === 'mark-owner-settled' && audit.AuditActions.MARK_DAMAGE_RESOLVED === 'mark-damage-resolved');
+
+        const { MotorManager } = await import('./modules/motors.js');
+        log('MotorManager.isPlateAvailable exists', typeof MotorManager.isPlateAvailable === 'function');
+        log('MotorManager.byCcAndSurfrack exists', typeof MotorManager.byCcAndSurfrack === 'function');
+
+        const { StaffManager, StaffRoles } = await import('./modules/staff.js');
+        log('StaffManager.optionsForDropdown exists', typeof StaffManager.optionsForDropdown === 'function');
+        log('StaffRoles defined', Array.isArray(StaffRoles) && StaffRoles.length >= 5);
+
+        const { RentalManager, renderRentalBadge, getRentalBadge } = await import('./modules/rentals.js');
+        log('RentalManager.markPaid exists', typeof RentalManager.markPaid === 'function');
+        log('RentalManager.markOwnerSettled exists', typeof RentalManager.markOwnerSettled === 'function');
+        log('RentalManager.markDamageResolved exists', typeof RentalManager.markDamageResolved === 'function');
+        log('RentalManager.holdPassport exists', typeof RentalManager.holdPassport === 'function');
+        log('RentalManager.editRental exists', typeof RentalManager.editRental === 'function');
+        log('getRentalBadge exports', typeof getRentalBadge === 'function');
+        log('renderRentalBadge exports', typeof renderRentalBadge === 'function');
+
+        // ============ CUTOFF 11 AM (REGRESSION) ============
+        section('2. Cutoff 11 AM — 14 regression cases');
+        const cases = [
+          ['2026-05-20T14:00', '2026-05-21T10:30', 1, '1 night, < 11:00 → 1 day'],
+          ['2026-05-20T14:00', '2026-05-21T11:00', 2, '1 night, @ 11:00 → 2 days'],
+          ['2026-05-20T14:00', '2026-05-21T10:59', 1, '1 night, 10:59 → 1 day'],
+          ['2026-05-20T14:00', '2026-05-23T09:00', 3, '3 nights, < 11:00 → 3 days'],
+          ['2026-05-20T14:00', '2026-05-23T15:00', 4, '3 nights, > 11:00 → 4 days'],
+          ['2026-05-20T14:00', '2026-05-20T16:00', 1, 'same-day after 11:00 → 1 day'],
+          ['2026-05-20T08:00', '2026-05-20T10:00', 1, 'same-day before 11:00 → 1 day'],
+          ['2026-05-20T08:00', '2026-05-25T11:30', 6, 'multi-day > 11 → +1'],
+          ['2026-05-20T08:00', '2026-05-25T10:00', 5, 'multi-day < 11 → no +1'],
+        ];
+        for (const [s, e, exp, label] of cases) {
+          const got = utils.calcRentalDays(s, e);
+          log(`calcRentalDays: ${label}`, got === exp, `got ${got}, expected ${exp}`);
+        }
+        log('null start → 0', utils.calcRentalDays(null, '2026-05-21T11:00') === 0);
+        log('null end → 0', utils.calcRentalDays('2026-05-20T14:00', null) === 0);
+        log('invalid input → 0', utils.calcRentalDays('invalid', '2026-05-21T11:00') === 0);
+        log('custom cutoff=10, return 09:30 → 1', utils.calcRentalDays('2026-05-20T14:00', '2026-05-21T09:30', 10) === 1);
+        log('custom cutoff=10, return 10:30 → 2', utils.calcRentalDays('2026-05-20T14:00', '2026-05-21T10:30', 10) === 2);
+
+        // ============ STAFF MANAGEMENT ============
+        section('3. Staff Management (R2)');
+        const initialStaffCount = StaffManager.list().length;
+        const s1 = StaffManager.create({ name: 'TEST_STAFF_' + Date.now(), role: 'frontdesk' });
+        log('Staff create works', !!s1.id);
+        log('Staff appears in list', StaffManager.list().length === initialStaffCount + 1);
+        await expectError(
+          () => StaffManager.create({ name: s1.name, role: 'mechanic' }),
+          'sudah ada', 'Duplicate staff name throws'
+        );
+        StaffManager.update(s1.id, { active: false });
+        log('Staff toggle inactive', StaffManager.get(s1.id).active === false);
+        log('Inactive staff NOT in optionsForDropdown', !StaffManager.optionsForDropdown().some(o => o.value === s1.name.toUpperCase()));
+        StaffManager.remove(s1.id);
+        log('Staff cleanup', StaffManager.get(s1.id) === undefined);
+
+        // ============ MOTOR (R4) ============
+        section('4. Motor — unique plate + surfrack mandatory + PH/GPS/PTO');
+        const tm1 = MotorManager.create({
+          plate: 'TM-PLATE-' + Date.now(), description: 'Test Motor',
+          cc: '150', pricePerDay: 100000, ownerName: 'TestOwner',
+          category: 'A', hasSurfrack: true, phoneHolder: true, gps: false,
+        });
+        log('Motor create with all fields', tm1.id && tm1.hasSurfrack && tm1.phoneHolder && !tm1.gps);
+        log('PTO auto-calculated (71% of price)', tm1.payToOwnerPerDay === Math.round(100000 * 0.71));
+
+        await expectError(
+          () => MotorManager.create({ plate: tm1.plate, description: 'Dup', cc: '150', pricePerDay: 70000, ownerName: 'X', category: 'A', hasSurfrack: false }),
+          'sudah terdaftar', 'Duplicate plate rejected'
+        );
+        await expectError(
+          () => MotorManager.create({ plate: 'NEW-' + Date.now(), description: 'No Surfrack', cc: '150', pricePerDay: 70000, ownerName: 'X', category: 'A' }),
+          'surfrack wajib', 'Missing hasSurfrack rejected'
+        );
+        await expectError(
+          () => MotorManager.create({ plate: 'NEW-' + Date.now(), description: 'Null surfrack', cc: '150', pricePerDay: 70000, ownerName: 'X', category: 'A', hasSurfrack: null }),
+          'surfrack wajib', 'Null hasSurfrack rejected'
+        );
+
+        // Update keep self plate OK
+        MotorManager.update(tm1.id, { plate: tm1.plate, description: 'Updated' });
+        log('Update with own plate (no-op) OK', MotorManager.get(tm1.id).description === 'Updated');
+
+        // Filter helper
+        MotorManager.update(tm1.id, { hasSurfrack: true });
+        const filteredWithSr = MotorManager.byCcAndSurfrack('150', 'true');
+        log('byCcAndSurfrack filter works', filteredWithSr.some(m => m.id === tm1.id));
+
+        // ============ RENTAL CHECK-IN (Fase A + R5) ============
+        section('5. Rental — Check-In (Identitas baru, finish opsional, biaya 0)');
+        const r1 = RentalManager.checkIn({
+          guestName: 'SmokeTest Guest 1',
+          wa: '08123456789',
+          email: 'test@example.com',
+          motorId: tm1.id,
+          startDate: '2026-05-20T14:00',
+          // finishDate: skip (opsional)
+        });
+        log('checkIn no finishDate works', !!r1.id);
+        log('checkIn: totalCost=0 (no charge until checkout)', r1.totalCost === 0);
+        log('checkIn: payToOwner=0', r1.payToOwner === 0);
+        log('checkIn: status=active', r1.status === 'active');
+        log('checkIn: paid=false', r1.paid === false);
+        log('checkIn: ownerSettled=false', r1.ownerSettled === false);
+        log('checkIn: passport workflow init', r1.passportHeld === false && r1.hostelCheckedOut === false);
+        log('checkIn: wa+email saved', r1.wa === '08123456789' && r1.email === 'test@example.com');
+        log('checkIn: payToOwnerPerDay from motor.PTO', r1.payToOwnerPerDay === tm1.payToOwnerPerDay);
+        log('Motor status → rented', MotorManager.get(tm1.id).status === 'rented');
+
+        // ============ R9 — PASSPORT HOLD ============
+        section('6. Passport Hold workflow (R9)');
+        const r1Updated = RentalManager.holdPassport(r1.id, { passportNo: 'A12345678' });
+        log('holdPassport: passportHeld=true', r1Updated.passportHeld === true);
+        log('holdPassport: hostelCheckedOut=true', r1Updated.hostelCheckedOut === true);
+        log('holdPassport: passportNo saved', r1Updated.passportNo === 'A12345678');
+        log('holdPassport: passportHeldAt timestamp set', !!r1Updated.passportHeldAt);
+
+        await expectError(
+          () => RentalManager.holdPassport(r1.id, { passportNo: '' }),
+          'wajib', 'holdPassport: empty passport rejected'
+        );
+
+        // Release
+        const r1Released = RentalManager.releasePassport(r1.id);
+        log('releasePassport: passportHeld=false', r1Released.passportHeld === false);
+        log('releasePassport: passportNo retained for archive', r1Released.passportNo === 'A12345678');
+
+        // ============ R10 — EDIT RENTAL ============
+        section('7. Edit Rental (R10) — active only');
+        const r1Edited = RentalManager.editRental(r1.id, {
+          guestName: 'EDITED Guest',
+          wa: '0899999',
+          email: 'edited@x.com',
+        });
+        log('editRental: guestName updated', r1Edited.guestName === 'EDITED Guest');
+        log('editRental: wa updated', r1Edited.wa === '0899999');
+        log('editRental: status still active', r1Edited.status === 'active');
+
+        // Motor swap test
+        const tm2 = MotorManager.create({
+          plate: 'TM2-' + Date.now(), description: 'Swap Motor', cc: '110 - 125',
+          pricePerDay: 70000, ownerName: 'Owner2', category: 'B', hasSurfrack: false,
+        });
+        const r1Swap = RentalManager.editRental(r1.id, { motorId: tm2.id });
+        log('editRental: motor swap motorId changed', r1Swap.motorId === tm2.id);
+        log('editRental: motor swap snapshot updated', r1Swap.motorPlate === tm2.plate);
+        log('editRental: old motor available again', MotorManager.get(tm1.id).status === 'available');
+        log('editRental: new motor rented', MotorManager.get(tm2.id).status === 'rented');
+
+        // ============ R6 — CHECK-OUT (status=returned, no paymentMethod yet) ============
+        section('8. Check-Out (R6) — status=returned + 11 AM logic');
+        const r1Out = RentalManager.checkOut(r1.id, {
+          actualFinishDate: '2026-05-23T10:30',  // < 11:00 → 3 days
+          staffReceivesKey: 'TESTSTAFF',
+        });
+        log('checkOut: status=returned (NOT completed)', r1Out.status === 'returned');
+        log('checkOut: totalDays=3 (cutoff 11AM)', r1Out.totalDays === 3);
+        log('checkOut: totalCost = 70000×3', r1Out.totalCost === 210000);
+        log('checkOut: paid still false', r1Out.paid === false);
+        log('checkOut: ownerSettled still false', r1Out.ownerSettled === false);
+        log('checkOut: damageResolved=true (no damage)', r1Out.damageResolved === true);
+        log('checkOut: motor → available', MotorManager.get(tm2.id).status === 'available');
+
+        // Edit should be blocked now
+        await expectError(
+          () => RentalManager.editRental(r1.id, { guestName: 'TOO LATE' }),
+          'aktif', 'editRental blocked after returned'
+        );
+
+        // ============ R7/R8 — MULTI-FLAG ACTIONS ============
+        section('9. Multi-flag actions (R7/R8)');
+        // Badge before
+        const b1 = getRentalBadge(r1Out);
+        log('Badge: returned + !paid → Menunggu Pembayaran', b1.primary.label.includes('Pembayaran'));
+
+        // markOwnerSettled should fail before paid
+        await expectError(
+          () => RentalManager.markOwnerSettled(r1.id),
+          'belum bayar', 'markOwnerSettled blocked before paid'
+        );
+
+        // Mark paid
+        const r1Paid = RentalManager.markPaid(r1.id, { paymentMethod: 'Cash Box' });
+        log('markPaid: paid=true', r1Paid.paid === true);
+        log('markPaid: paidAt set', !!r1Paid.paidAt);
+        log('markPaid: paymentMethod=Cash Box', r1Paid.paymentMethod === 'Cash Box');
+
+        const b2 = getRentalBadge(r1Paid);
+        log('Badge: paid + !settled → Menunggu Settle', b2.primary.label.includes('Settle'));
+
+        // markPaid twice should fail
+        await expectError(
+          () => RentalManager.markPaid(r1.id, { paymentMethod: 'QRIS' }),
+          'sudah dibayar', 'Duplicate markPaid rejected'
+        );
+
+        // Mark settled
+        const r1Settled = RentalManager.markOwnerSettled(r1.id);
+        log('markOwnerSettled: ownerSettled=true', r1Settled.ownerSettled === true);
+        log('markOwnerSettled: ownerSettledAt set', !!r1Settled.ownerSettledAt);
+
+        const b3 = getRentalBadge(r1Settled);
+        log('Badge: paid + settled + damageResolved → Selesai', b3.primary.label.includes('Selesai'));
+        log('Badge: fullyDone=true', b3.fullyDone === true);
+
+        // markDamageResolved with no damage should fail
+        await expectError(
+          () => RentalManager.markDamageResolved(r1.id),
+          'tidak ada kerusakan', 'markDamageResolved without damage rejected'
+        );
+
+        // Helper queries
+        log('awaitingPayment() works', Array.isArray(RentalManager.awaitingPayment()));
+        log('awaitingOwnerSettle() works', Array.isArray(RentalManager.awaitingOwnerSettle()));
+        log('fullyDone() includes r1', RentalManager.fullyDone().some(r => r.id === r1.id));
+
+        // ============ AUDIT LOG (R3) ============
+        section('10. Audit log');
+        const entries = audit.AuditManager.list();
+        log('Audit log has entries from tests', entries.length > 10);
+        const actions = entries.map(e => e.action);
+        log('Audit captured: check-in', actions.includes('check-in'));
+        log('Audit captured: check-out', actions.includes('check-out'));
+        log('Audit captured: mark-paid', actions.includes('mark-paid'));
+        log('Audit captured: mark-owner-settled', actions.includes('mark-owner-settled'));
+        log('Audit captured: passport-hold', actions.includes('passport-hold'));
+        log('Audit captured: motor create', entries.some(e => e.entity === 'motor' && e.action === 'create'));
+        log('Audit filter by entity works', audit.AuditManager.filter({ entity: 'motor' }).every(e => e.entity === 'motor'));
+
+        // ============ MIGRATION SAFETY ============
+        section('11. Migration safety');
+        const motorBeforeMigrate = MotorManager.get(tm1.id);
+        log('Motor has phoneHolder field', 'phoneHolder' in motorBeforeMigrate);
+        log('Motor has gps field', 'gps' in motorBeforeMigrate);
+        log('Motor has payToOwnerPerDay field', 'payToOwnerPerDay' in motorBeforeMigrate);
+
+        // ============ CLEANUP ============
+        section('12. Cleanup');
+        MotorManager.remove(tm1.id);
+        MotorManager.remove(tm2.id);
+        log('Test motors cleaned', !MotorManager.get(tm1.id) && !MotorManager.get(tm2.id));
+
+        // ============ SUMMARY ============
+        status.textContent = `${pass}/${pass + fail}`;
+        status.style.color = fail === 0 ? '#38a169' : '#e53e3e';
+        summary.style.display = '';
+        summaryContent.innerHTML = `
+          <div style="font-size:24px;font-weight:800">
+            ${fail === 0 ? '✅' : '⚠️'} ${pass} passed
+            ${fail > 0 ? `<span style="color:#e53e3e">/ ${fail} failed</span>` : ''}
+          </div>
+          <p style="margin-top:8px">
+            ${fail === 0
+              ? 'Semua modul Fase A v1.2 berfungsi. Buka <a href="index.html">index.html</a> untuk test UI.'
+              : '⚠ Ada test yang gagal — periksa detail di atas.'}
+          </p>
+          <details style="margin-top:8px"><summary>Coverage</summary>
+            <ul style="font-size:12px;margin-top:8px">
+              <li>R1: Schema migration (phoneHolder, gps, payToOwnerPerDay, multi-flag rental)</li>
+              <li>R2: Staff Management — CRUD + uniqueness + active filter</li>
+              <li>R3: Owner without PTO field</li>
+              <li>R4: Motor — unique plate, surfrack mandatory, PH/GPS/PTO</li>
+              <li>R5: Rental form — Nama/WA/Email, no payment method, staff dropdown</li>
+              <li>R6: Check-out → status='returned' (not 'completed')</li>
+              <li>R7: getRentalBadge multi-flag computed</li>
+              <li>R8: markPaid / markOwnerSettled / markDamageResolved + validation</li>
+              <li>R9: holdPassport / releasePassport workflow</li>
+              <li>R10: editRental whitelist + motor swap</li>
+              <li>R11: this report</li>
+              <li>R12-R14: UI only (no JS logic) — manual test di browser</li>
+              <li>Cutoff 11 AM: 14 regression cases</li>
+              <li>Audit log: actions captured correctly</li>
+            </ul>
+          </details>
+        `;
+      } catch (e) {
+        log('FATAL — exception saat run tests', false, e.message + ' · ' + (e.stack?.split('\n')[1] || ''));
+        console.error(e);
+        status.textContent = 'ERROR';
+        status.style.color = '#e53e3e';
+        summary.style.display = '';
+        summaryContent.innerHTML = `<div style="color:#e53e3e">Test crashed: ${e.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Chill Rental — Motor Rental System</title>
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- App shell -->
+  <div id="app" class="app-shell">
+    <!-- Top bar (mobile + desktop) -->
+    <header class="topbar" role="banner">
+      <button class="icon-btn topbar__menu" id="btn-menu" data-i18n-aria="topbar_menu_aria">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar__brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h2l3 6"/><path d="M5.5 17.5L9 8h4l2.5 6"/></svg>
+        </div>
+        <div class="topbar__title">
+          <h1>Chill Rental</h1>
+          <span class="topbar__sub" id="topbar-context">Dashboard</span>
+        </div>
+      </div>
+      <div class="topbar__actions">
+        <button class="chip chip--success" id="kpi-active" data-i18n-title="topbar_new_rental_title"> <!-- title dari motor disewa di-set via JS -->
+          <span class="chip__dot"></span>
+          <span id="kpi-active-count">0</span> <span data-i18n="topbar_kpi_active">sedang disewa</span>
+        </button>
+        <!-- R13: Quick action — Sewa Baru (replaces button in page headers) -->
+        <button class="btn btn--sm topbar__quick-rental" id="btn-quick-rental" data-i18n-title="topbar_new_rental_title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span class="topbar__quick-rental-label" data-i18n="topbar_quick_rental">Sewa Baru</span>
+        </button>
+        <button class="icon-btn" id="btn-theme" data-i18n-aria="topbar_theme_aria">
+          <svg id="ico-theme" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Sidebar nav (desktop) / drawer (mobile) -->
+    <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+      <nav class="nav">
+        <a href="#dashboard" class="nav__item is-active" data-route="dashboard" data-i18n-title="nav_dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          <span data-i18n="nav_dashboard">Beranda</span>
+        </a>
+        <a href="#rentals" class="nav__item" data-route="rentals" data-i18n-title="nav_rentals">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span data-i18n="nav_rentals">Sewa</span>
+        </a>
+        <a href="#motors" class="nav__item" data-route="motors" data-i18n-title="nav_motors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h2l3 6"/><path d="M5.5 17.5L9 8h4l2.5 6"/></svg>
+          <span data-i18n="nav_motors">Kendaraan</span>
+        </a>
+        <a href="#owners" class="nav__item" data-route="owners" data-i18n-title="nav_owners">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span data-i18n="nav_owners">Pemilik</span>
+        </a>
+        <a href="#staff" class="nav__item" data-route="staff" data-i18n-title="nav_staff">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="6" r="2"/></svg>
+          <span data-i18n="nav_staff">Staf</span>
+        </a>
+        <a href="#reports" class="nav__item" data-route="reports" data-i18n-title="nav_reports">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span data-i18n="nav_reports">Laporan</span>
+        </a>
+        <a href="#audit" class="nav__item" data-route="audit" data-i18n-title="nav_audit">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>
+          <span data-i18n="nav_audit">Riwayat Aktivitas</span>
+        </a>
+        <a href="#damages" class="nav__item" data-route="damages" data-i18n-title="nav_damages">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span data-i18n="nav_damages">Kerusakan</span>
+        </a>
+        <a href="#settings" class="nav__item" data-route="settings" data-i18n-title="nav_settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span data-i18n="nav_settings">Pengaturan</span>
+        </a>
+      </nav>
+      <div class="sidebar__footer">
+        <button class="btn btn--ghost btn--block" id="btn-seed" data-i18n="page_settings_load_demo">Muat Data Demo</button>
+        <p class="muted-xs">v1.0 · Modular Build</p>
+      </div>
+    </aside>
+    <div class="scrim" id="scrim" hidden></div>
+
+    <!-- Main content area, routed -->
+    <main class="content" id="content" tabindex="-1">
+      <!-- Pages diisi oleh router.js -->
+    </main>
+
+    <!-- Bottom tab bar (mobile only) -->
+    <nav class="tabbar" aria-label="Navigasi cepat">
+      <a href="#dashboard" class="tabbar__item is-active" data-route="dashboard">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        <span data-i18n="tabbar_beranda">Beranda</span>
+      </a>
+      <a href="#rentals" class="tabbar__item" data-route="rentals">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span data-i18n="tabbar_sewa">Sewa</span>
+      </a>
+      <button class="tabbar__fab" id="btn-new-rental" data-i18n-aria="tabbar_fab_aria">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <a href="#motors" class="tabbar__item" data-route="motors">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h2l3 6"/><path d="M5.5 17.5L9 8h4l2.5 6"/></svg>
+        <span data-i18n="tabbar_motor">Kendaraan</span>
+      </a>
+      <a href="#reports" class="tabbar__item" data-route="reports">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span data-i18n="tabbar_laporan">Laporan</span>
+      </a>
+    </nav>
+
+    <!-- Modal mount + toast mount -->
+    <div id="modal-root"></div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+  </div>
+
+  <!-- Modules (load order matters) -->
+  <script type="module" src="modules/app.js"></script>
+</body>
+</html>

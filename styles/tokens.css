@@ -1,0 +1,192 @@
+/* ===========================================================
+   Chill Rental — Design Tokens
+   Style: Minimalism + Bento Grid, mobile-first, theme-aware
+   =========================================================== */
+
+:root {
+  /* ---- Color Primitives ---- */
+  --c-teal-50:  #ecfeff;
+  --c-teal-100: #cffafe;
+  --c-teal-300: #67e8f9;
+  --c-teal-500: #06b6d4;
+  --c-teal-600: #0891b2;
+  --c-teal-700: #0e7490;
+
+  --c-amber-100: #fef3c7;
+  --c-amber-500: #f59e0b;
+  --c-amber-600: #d97706;
+
+  --c-rose-100: #ffe4e6;
+  --c-rose-500: #f43f5e;
+  --c-rose-600: #e11d48;
+
+  --c-emerald-100: #d1fae5;
+  --c-emerald-500: #10b981;
+  --c-emerald-600: #059669;
+
+  --c-slate-50:  #f8fafc;
+  --c-slate-100: #f1f5f9;
+  --c-slate-200: #e2e8f0;
+  --c-slate-300: #cbd5e1;
+  --c-slate-400: #94a3b8;
+  --c-slate-500: #64748b;
+  --c-slate-600: #475569;
+  --c-slate-700: #334155;
+  --c-slate-800: #1e293b;
+  --c-slate-900: #0f172a;
+  --c-slate-950: #020617;
+
+  /* ---- Semantic — Light (default) — warm palette + amber accent ----
+     Tier-based bg: bg-app (creamy off-white) → bg-elev (white card) → bg-elev-2 (subtle recessed)
+     Text: warm dark (#1a1612 bukan pure black) untuk warm feel.
+     Accent: amber #e8a048 (sama dengan dark — konsistensi brand).
+  */
+  --bg-app: #f7f4ef;            /* warm cream — readable bg */
+  --bg-elev: #ffffff;           /* card, sidebar, modal */
+  --bg-elev-2: #f4f0ea;         /* recessed (input, table header) */
+  --bg-subtle: #f4f0ea;
+  --bg-tint: rgba(232, 160, 72, .07);
+
+  --text-primary: #1a1612;      /* warm near-black */
+  --text-secondary: #5a544e;    /* warm muted */
+  --text-tertiary: #8a8580;     /* warm light muted */
+  --text-inverse: #ffffff;
+  --text-on-brand: #1a1209;     /* dark text di atas amber (high contrast) */
+
+  --border-subtle: rgba(26, 22, 18, .10);
+  --border-strong: rgba(26, 22, 18, .18);
+  --border-focus: #e8a048;
+
+  --brand: #e8a048;
+  --brand-hover: #d4863a;
+  --brand-soft: rgba(232, 160, 72, .14);
+  --brand-soft-text: #b06820;   /* darker amber untuk text di soft badge (kontras di light bg) */
+
+  --success: #2e9c6b;           /* darker green untuk light mode (AA contrast) */
+  --success-soft: rgba(46, 156, 107, .12);
+  --warning: #c9881f;           /* darker amber untuk warning badge */
+  --warning-soft: rgba(232, 160, 72, .14);
+  --danger: #c8443f;            /* darker red untuk light mode */
+  --danger-soft: rgba(200, 68, 63, .10);
+  --info: #4185d6;
+  --info-soft: rgba(65, 133, 214, .10);
+
+  /* ---- Spacing (4/8 rhythm) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 48px;
+  --sp-10: 64px;
+
+  /* ---- Radius ---- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 24px;
+  --r-pill: 999px;
+
+  /* ---- Shadow — warm tone (light mode default) ---- */
+  --sh-xs: 0 1px 2px rgba(26, 22, 18, .05);
+  --sh-sm: 0 1px 3px rgba(26, 22, 18, .08), 0 1px 2px rgba(26, 22, 18, .04);
+  --sh-md: 0 4px 14px rgba(26, 22, 18, .08), 0 2px 4px rgba(26, 22, 18, .04);
+  --sh-lg: 0 14px 36px rgba(26, 22, 18, .12), 0 4px 8px rgba(26, 22, 18, .06);
+  --sh-focus: 0 0 0 3px rgba(232, 160, 72, .30);
+
+  /* ---- Typography ---- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Manrope', var(--font-sans);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 15px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-3xl: 34px;
+  --fs-4xl: 44px;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.5;
+  --lh-loose: 1.65;
+
+  /* ---- Motion ---- */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+
+  /* ---- Layout ---- */
+  --topbar-h: 60px;
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 72px;   /* R12: icon-only mode */
+  --tabbar-h: 72px;
+  --maxw-content: 1280px;
+}
+
+/* ===== Dark theme — palette refresh (referensi: warm dark + amber accent) =====
+   Tier-based backgrounds: bg-app (paling gelap) → bg-elev → bg-elev-2 (paling terang)
+   Text: warm off-white #f0ede8 (bukan pure white) untuk reading comfort.
+   Accent: amber #e8a048 (lebih hostel-vibe daripada teal).
+*/
+[data-theme="dark"] {
+  /* ---- Backgrounds (3 tier) ---- */
+  --bg-app: #0e0f11;            /* page bg (paling gelap) */
+  --bg-elev: #16181c;           /* sidebar, card, modal */
+  --bg-elev-2: #1e2128;         /* input bg, table header, elevated surface */
+  --bg-subtle: #1e2128;         /* alias untuk bg-subtle yang ada di code */
+  --bg-tint: rgba(232, 160, 72, .08);
+
+  /* ---- Text (warm tones) ---- */
+  --text-primary: #f0ede8;      /* warm off-white */
+  --text-secondary: #9a9690;    /* secondary muted */
+  --text-tertiary: #5a5854;     /* tertiary very muted */
+  --text-inverse: #1a1209;      /* dark text (untuk button primary di atas accent) */
+  --text-on-brand: #1a1209;     /* dark text di atas amber button */
+
+  /* ---- Borders ---- */
+  --border-subtle: rgba(255, 255, 255, .07);
+  --border-strong: rgba(255, 255, 255, .13);
+  --border-focus: #e8a048;
+
+  /* ---- Brand (amber) ---- */
+  --brand: #e8a048;
+  --brand-hover: #d4863a;
+  --brand-soft: rgba(232, 160, 72, .12);
+  --brand-soft-text: #e8a048;
+
+  /* ---- Status colors + soft variants ---- */
+  --success: #4caf82;
+  --success-soft: rgba(76, 175, 130, .12);
+  --warning: #f0b84a;
+  --warning-soft: rgba(240, 184, 74, .12);
+  --danger: #e05252;
+  --danger-soft: rgba(224, 82, 82, .12);
+  --info: #5b9cf6;
+  --info-soft: rgba(91, 156, 246, .12);
+
+  /* ---- Focus ring ---- */
+  --sh-focus: 0 0 0 3px rgba(232, 160, 72, .35);
+
+  /* ---- Shadows ---- */
+  --sh-xs: 0 1px 2px rgba(0, 0, 0, .35);
+  --sh-sm: 0 1px 3px rgba(0, 0, 0, .45);
+  --sh-md: 0 6px 16px rgba(0, 0, 0, .45);
+  --sh-lg: 0 20px 40px rgba(0, 0, 0, .55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
