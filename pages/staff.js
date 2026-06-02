@@ -25,7 +25,7 @@ export function renderStaff() {
     );
   }
 
-  // Sort: active dulu, lalu nama A-Z
+  // Sort: active first, then name A-Z
   list = list.slice().sort((a, b) => {
     if (!!a.active !== !!b.active) return a.active ? -1 : 1;
     return (a.name || '').localeCompare(b.name || '');

@@ -148,7 +148,7 @@ export function renderMotors() {
 
 export function setupMotorsPage(rerender) {
   const content = document.getElementById('content');
-  // Klik chip aktif → toggle off (kembali ke 'all'). Klik chip lain → set value baru.
+  // Click the active chip → toggle off (back to 'all'). Click another chip → set the new value.
   content.querySelectorAll('[data-cat]').forEach(b => b.addEventListener('click', () => {
     currentCat = (currentCat === b.dataset.cat) ? 'all' : b.dataset.cat; rerender();
   }));

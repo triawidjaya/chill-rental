@@ -25,9 +25,9 @@ export const OwnerManager = {
 
   /**
    * Create owner.
-   * Catatan R3: field payToOwner sudah pindah ke Motor (per-motor PTO),
-   * karena owner sama bisa punya motor dengan CC berbeda → tarif berbeda.
-   * Field tetap dipertahankan di schema untuk backward-compat tapi tidak lagi dipakai.
+   * R3 note: the payToOwner field has moved to the Motor (per-motor PTO),
+   * because the same owner can have motors with different CC → different rates.
+   * The field is kept in the schema for backward-compat but is no longer used.
    */
   create({ name, phone, type = 'staff', notes = '' }) {
     const owner = {
@@ -36,7 +36,7 @@ export const OwnerManager = {
       phone: (phone || '').trim(),
       type, // 'property' | 'staff' | 'partner'
       notes,
-      _ptoMigrated: true,  // mark untuk migrasi di app.js
+      _ptoMigrated: true,  // marker for the migration in app.js
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

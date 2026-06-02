@@ -111,7 +111,7 @@ function renderRoute() {
 
 function updateActiveKPI() {
   if (!$kpiCount) return;
-  // BUG-FIX: list() tidak terima filter arg. Gunakan helper active() langsung.
+  // BUG-FIX: list() does not accept a filter arg. Use the active() helper directly.
   const active = RentalManager.active().length;
   $kpiCount.textContent = active;
 }
@@ -120,7 +120,7 @@ function updateActiveKPI() {
 function openSidebar() {
   $sidebar.classList.add('is-open');
   $scrim.hidden = false;
-  // Freeze content scroll saat drawer terbuka (mobile)
+  // Freeze content scroll while the drawer is open (mobile)
   $content.style.overflowY = 'hidden';
 }
 function closeSidebar() {
@@ -388,7 +388,7 @@ function migrate() {
   // ===== Motors =====
   // - hasSurfrack: default false (Fase A)
   // - phoneHolder, gps: default false (R1)
-  // - payToOwnerPerDay: copy dari owner.payToOwner (R1 — PTO pindah ke motor)
+  // - payToOwnerPerDay: copied from owner.payToOwner (R1 — PTO moved to the motor)
   const motors = state.get('motors') || [];
   let motorsChanged = false;
   const newMotors = motors.map(m => {
@@ -398,7 +398,7 @@ function migrate() {
     if (next.phoneHolder === undefined) { next.phoneHolder = false; changed = true; }
     if (next.gps === undefined) { next.gps = false; changed = true; }
     if (next.payToOwnerPerDay === undefined) {
-      // Coba ambil dari owner; fallback ke pricePerDay × 0.71 (rasio 50k/70k)
+      // Try to read from the owner; fall back to pricePerDay × 0.71 (50k/70k ratio)
       const owner = owners.find(o => o.id === m.ownerId);
       const fallback = Math.round((Number(m.pricePerDay) || 70000) * 0.71);
       next.payToOwnerPerDay = (owner && Number(owner.payToOwner)) || fallback;
@@ -410,11 +410,11 @@ function migrate() {
   if (motorsChanged) state.set('motors', newMotors);
 
   // ===== Rentals =====
-  // - payToOwnerPerDay (Fase A): tetap
+  // - payToOwnerPerDay (Phase A): unchanged
   // - Multi-flag status (R1):
-  //     status='active'    → tetap, paid=false, ownerSettled=false
-  //     status='completed' → status='returned' + paid=true + paymentMethod kept + ownerSettled=true + damageResolved (true jika no damage)
-  //     status='cancelled' → tetap
+  //     status='active'    → unchanged, paid=false, ownerSettled=false
+  //     status='completed' → status='returned' + paid=true + paymentMethod kept + ownerSettled=true + damageResolved (true if no damage)
+  //     status='cancelled' → unchanged
   // - Passport workflow (R1): hostelCheckedOut=false, passportHeld=false, passportHeldAt=null
   const rentals = state.get('rentals') || [];
   let rentalsChanged = false;
@@ -428,7 +428,7 @@ function migrate() {
       changed = true;
     }
 
-    // Multi-flag — hanya migrate jika belum ada flag baru
+    // Multi-flag — only migrate if the new flags are not present yet
     if (next.paid === undefined || next.ownerSettled === undefined || next.damageResolved === undefined) {
       if (next.status === 'completed') {
         next.status = 'returned';
@@ -442,7 +442,7 @@ function migrate() {
         next.paidAt = null;
         next.ownerSettled = false;
         next.ownerSettledAt = null;
-        next.damageResolved = !next.newDamage; // umumnya true (belum check-out)
+        next.damageResolved = !next.newDamage; // usually true (not checked out yet)
       } else if (next.status === 'cancelled') {
         next.paid = false;
         next.paidAt = null;
@@ -469,9 +469,9 @@ function migrate() {
   if (rentalsChanged) state.set('rentals', newRentals);
 
   // ===== Owners =====
-  // - payToOwner: jangan dihapus dulu sampai semua motor sudah ter-migrate dengan PTO.
-  //   Hanya tandai dengan _ptoMigrated=true; field payToOwner dibiarkan untuk backward-compat sementara.
-  //   Pembersihan akan dilakukan di sprint berikut setelah Form Owner sudah TIDAK memakai field ini.
+  // - payToOwner: do not remove it yet until all motors are migrated with PTO.
+  //   Only mark with _ptoMigrated=true; the payToOwner field is kept for temporary backward-compat.
+  //   Cleanup will happen in a later sprint once the Owner form no longer uses this field.
   let ownersChanged = false;
   const newOwners = owners.map(o => {
     if (o._ptoMigrated === undefined) { ownersChanged = true; return { ...o, _ptoMigrated: true }; }
@@ -482,13 +482,13 @@ function migrate() {
   // ===== AuditLog =====
   if (!state.get('auditLog')) state.set('auditLog', []);
 
-  // ===== Staff (placeholder untuk R2) =====
+  // ===== Staff (placeholder for R2) =====
   if (!state.get('staff')) state.set('staff', []);
 
   // ===== Motor status reconciliation =====
-  // Bug-fix: pastikan motor.status sync dengan rental aktif.
-  // Motor yang punya rental status='active' → rented + currentRentalId.
-  // Motor tanpa rental aktif → available + currentRentalId=null.
+  // Bug-fix: ensure motor.status stays in sync with active rentals.
+  // A motor with a status='active' rental → rented + currentRentalId.
+  // A motor without an active rental → available + currentRentalId=null.
   reconcileMotorStatus();
 }
 
@@ -521,7 +521,7 @@ function reconcileMotorStatus() {
 
 // ---------- Boot ----------
 function boot() {
-  // Migrate dulu (safe — non-destructive)
+  // Migrate first (safe — non-destructive)
   migrate();
 
   // Apply saved theme + sidebar collapsed state (R12)

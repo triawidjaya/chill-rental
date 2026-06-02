@@ -1,6 +1,6 @@
 // =============================================================
 // modules/ui/forms.js
-// Form builders untuk rental, motor, owner, check-out
+// Form builders for rental, motor, owner, check-out
 // =============================================================
 
 import { Modal, Toast } from './notify.js';
@@ -19,7 +19,7 @@ export function openRentalForm() {
     return;
   }
 
-  // CC unik dari motor available (untuk filter dropdown)
+  // Unique CC values from available motors (for the filter dropdown)
   const ccOptions = [...new Set(motorsAvail.map(m => m.cc).filter(Boolean))];
   const staffOptions = StaffManager.optionsForDropdown();
 
@@ -28,7 +28,7 @@ export function openRentalForm() {
 
   body.innerHTML = `
     <div class="stack" style="gap:14px">
-      <!-- ===== Step 1: Identitas Tamu ===== -->
+      <!-- ===== Step 1: Guest Identity ===== -->
       <div style="font-weight:700;color:var(--brand);font-size:13px;text-transform:uppercase;letter-spacing:0.04em">${t('form_step_identity')}</div>
       <div class="field">
         <label class="field__label required" for="f-guest">${t('form_guest_name')}</label>
@@ -50,7 +50,7 @@ export function openRentalForm() {
         <span class="field__hint">${t('form_passport_hint')}</span>
       </div>
 
-      <!-- ===== Step 2: Filter & Pilih Motor ===== -->
+      <!-- ===== Step 2: Filter & Pick Motor ===== -->
       <div style="font-weight:700;color:var(--brand);font-size:13px;text-transform:uppercase;letter-spacing:0.04em;margin-top:8px">${t('form_step_filter')}</div>
       <div class="field">
         <label class="field__label">${t('form_filter')}</label>
@@ -77,7 +77,7 @@ export function openRentalForm() {
         <span class="field__hint" id="motor-count">${motorsAvail.length} ${t('form_available_count')}</span>
       </div>
 
-      <!-- Info motor terpilih (read-only) -->
+      <!-- Selected motor info (read-only) -->
       <div class="card" id="motor-info" style="background:var(--bg-subtle);padding:12px;display:none">
         <div style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px">${t('form_motor_info_title')}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:13px">
@@ -87,7 +87,7 @@ export function openRentalForm() {
         </div>
       </div>
 
-      <!-- ===== Step 3: Waktu Sewa ===== -->
+      <!-- ===== Step 3: Rental Time ===== -->
       <div style="font-weight:700;color:var(--brand);font-size:13px;text-transform:uppercase;letter-spacing:0.04em;margin-top:8px">${t('form_step_time')}</div>
       <div class="field-group">
         <div class="field">
@@ -110,7 +110,7 @@ export function openRentalForm() {
         </div>
       </div>
 
-      <!-- ===== Step 4: Detail Tambahan ===== -->
+      <!-- ===== Step 4: Additional Details ===== -->
       <div style="font-weight:700;color:var(--brand);font-size:13px;text-transform:uppercase;letter-spacing:0.04em;margin-top:8px">${t('form_step_details')}</div>
       <div class="field">
         <label class="field__label" for="f-staff">${t('form_staff_key')}</label>
@@ -189,7 +189,7 @@ export function openRentalForm() {
     }
   });
 
-  // Estimasi hari (hanya jika finish diisi)
+  // Estimated days (only when finish is filled in)
   const recalc = () => {
     const start = $('#f-start').value;
     const finish = $('#f-finish').value;
@@ -230,8 +230,8 @@ export function openRentalForm() {
       motorId, startDate, finishDate,
       staffGivesKey,
       notes,
-      // pricePerDay & payToOwner: BIARKAN undefined — checkIn akan auto-fill dari motor
-      // paymentMethod: BIARKAN default 'Cash Box' — akan di-set di check-out
+      // pricePerDay & payToOwner: LEAVE undefined — checkIn auto-fills from the motor
+      // paymentMethod: LEAVE as default — it will be set at check-out
     };
 
     try {
@@ -250,8 +250,8 @@ export function openRentalDetail(rentalId) {
   const r = RentalManager.get(rentalId);
   if (!r) return Toast.error(t('err_not_found'));
 
-  // Re-render modal in-place setelah setiap aksi (tanpa kembali ke list).
-  // route:refresh hanya di-dispatch saat user tutup modal secara manual.
+  // Re-render the modal in-place after each action (without returning to the list).
+  // route:refresh is only dispatched when the user closes the modal manually.
   const refreshDetail = () => {
     Modal.close();
     setTimeout(() => openRentalDetail(rentalId), 50);
@@ -389,7 +389,7 @@ export function openRentalDetail(rentalId) {
                 </div>
               ` : ''}
 
-              <!-- Step 1: Damage (harus diselesaikan PERTAMA jika ada) -->
+              <!-- Step 1: Damage (must be resolved FIRST if any) -->
               ${r.newDamage ? (r.damageResolved ? `
                 <div class="action-row">
                   <div style="color:var(--success);min-width:0">
@@ -406,7 +406,7 @@ export function openRentalDetail(rentalId) {
                 </button>
               `) : ''}
 
-              <!-- Step 2: Bayar (hanya aktif jika damage sudah selesai & passport tidak di-hold) -->
+              <!-- Step 2: Pay (only enabled when damage is resolved & passport is not held) -->
               ${r.paid ? `
                 <div class="action-row">
                   <div style="color:var(--success);min-width:0">
@@ -427,7 +427,7 @@ export function openRentalDetail(rentalId) {
                 </button>
               `)}
 
-              <!-- Step 3: Settle Owner (hanya aktif setelah bayar) -->
+              <!-- Step 3: Settle Owner (only enabled after payment) -->
               ${r.ownerSettled ? `
                 <div class="action-row">
                   <div style="color:var(--success);min-width:0">
@@ -587,7 +587,7 @@ export function openRentalDetail(rentalId) {
   });
 
   if (r.status === 'active') {
-    // Live preview total biaya berdasarkan aturan 11 AM
+    // Live preview of the total cost based on the 11 AM rule
     const $$ = (id) => body.querySelector(id);
     const updateCoCalc = () => {
       const finish = $$('#co-finish').value;
@@ -604,7 +604,7 @@ export function openRentalDetail(rentalId) {
       $$('#co-calc-pto').textContent = formatIDR(pto);
       $$('#co-calc-comm').textContent = formatIDR(comm);
 
-      // Hint cut-off
+      // Cut-off hint
       const e = new Date(finish);
       const hint = $$('#co-cutoff-hint');
       if (e.getHours() < 11) {
@@ -618,7 +618,7 @@ export function openRentalDetail(rentalId) {
     $$('#co-finish').addEventListener('input', updateCoCalc);
     updateCoCalc();  // initial
 
-    // Attach thousand separator ke input ganti rugi
+    // Attach the thousand separator to the damage-charge input
     const getChargeValue = attachNumericInput($$('#co-charge'), { placeholder: '0' });
 
     document.getElementById('btn-checkout').addEventListener('click', () => {
@@ -641,8 +641,8 @@ export function openRentalDetail(rentalId) {
     });
     document.getElementById('btn-cancel-rental').addEventListener('click', async () => {
       try {
-        // Guard cek dulu — jika throw, tampilkan pesan tanpa confirm dialog
-        // Jalankan dry-run dengan cara cek manual hari berjalan
+        // Guard check first — if it throws, show the message without a confirm dialog
+        // Run a dry-run by manually checking elapsed days
         const daysSoFar = Math.max(0,
           Math.floor((Date.now() - new Date(r.startDate).getTime()) / 86400000)
         );
@@ -673,12 +673,12 @@ export function openRentalDetail(rentalId) {
     if (btnEdit) {
         btnEdit.addEventListener('click', () => {
         Modal.close();
-        // small delay supaya modal lama close dulu
+        // small delay so the old modal closes first
         setTimeout(() => openRentalEditForm(r.id, () => openRentalDetail(rentalId)), 100);
       });
     }
 
-    // Flag dugaan damage saat aktif
+    // Flag suspected damage while active
     const btnFlagDamage = document.getElementById('btn-flag-damage');
     if (btnFlagDamage) {
       btnFlagDamage.addEventListener('click', async () => {
@@ -745,7 +745,7 @@ export function openRentalDetail(rentalId) {
     }
   }
 
-  // Undo Check-Out (footer button, hanya muncul jika !paid)
+  // Undo Check-Out (footer button, only shown when !paid)
   const btnUndoCheckout = document.getElementById('btn-undo-checkout');
   if (btnUndoCheckout) {
     btnUndoCheckout.addEventListener('click', async () => {
@@ -764,7 +764,7 @@ export function openRentalDetail(rentalId) {
     });
   }
 
-  // R8: handler untuk 3 aksi multi-flag (status='returned')
+  // R8: handlers for the 3 multi-flag actions (status='returned')
   if (r.status === 'returned' || r.status === 'completed') {
     const btnPaid   = document.getElementById('btn-mark-paid');
     const btnSettle = document.getElementById('btn-mark-settle');
@@ -828,7 +828,7 @@ export function openRentalDetail(rentalId) {
       });
     }
 
-    // Koreksi Admin (hanya fullyDone + hari yang sama)
+    // Admin Correction (only fullyDone + same day)
     const btnAdminCorrect = document.getElementById('btn-admin-correct');
     if (btnAdminCorrect) {
       btnAdminCorrect.addEventListener('click', () => {
@@ -856,7 +856,7 @@ export function openRentalDetail(rentalId) {
       });
     }
 
-    // Edit damage (deskripsi + charge) sebelum resolved & sebelum paid
+    // Edit damage (description + charge) before resolved & before paid
     const btnEditDamage = document.getElementById('btn-edit-damage');
     if (btnEditDamage) {
       btnEditDamage.addEventListener('click', () => {
@@ -865,7 +865,7 @@ export function openRentalDetail(rentalId) {
       });
     }
 
-    // Release passport dari status returned (tombol di warning card)
+    // Release passport from the returned status (button in the warning card)
     const btnReleaseReturned = document.getElementById('btn-release-passport-returned');
     if (btnReleaseReturned) {
       btnReleaseReturned.addEventListener('click', async () => {
@@ -883,7 +883,7 @@ export function openRentalDetail(rentalId) {
       });
     }
 
-    // Batal Tandai Bayar (hanya muncul jika paid && !ownerSettled)
+    // Unmark Paid (only shown when paid && !ownerSettled)
     const btnUnmarkPaid = document.getElementById('btn-unmark-paid');
     if (btnUnmarkPaid) {
       btnUnmarkPaid.addEventListener('click', async () => {
@@ -912,7 +912,7 @@ export function openRentalEditForm(rentalId, afterSave = null) {
     return Toast.error(t('err_not_active'));
   }
 
-  // Motor options: available + motor saat ini (supaya tidak hilang dari dropdown)
+  // Motor options: available + the current motor (so it does not disappear from the dropdown)
   const motorsAvail = MotorManager.available();
   const currentMotor = MotorManager.get(r.motorId);
   const motorOptions = currentMotor && !motorsAvail.some(m => m.id === currentMotor.id)
@@ -1130,7 +1130,7 @@ function openPaymentMethodPicker(currentMethod = '') {
 export function openMotorForm(motorId = null) {
   const m = motorId ? MotorManager.get(motorId) : null;
   const owners = OwnerManager.list();
-  // Surfrack di edit mode: pakai existing value. Di create mode: belum dipilih (null).
+  // Surfrack in edit mode: use the existing value. In create mode: not yet chosen (null).
   const initialSurfrack = m ? (m.hasSurfrack ? 'true' : 'false') : '';
 
   const body = document.createElement('div');
@@ -1216,7 +1216,7 @@ export function openMotorForm(motorId = null) {
 
   Modal.open({ title: m ? t('modal_edit_motor') : t('modal_add_motor'), body, footer });
 
-  // Attach thousand separator ke input harga motor
+  // Attach the thousand separator to the motor price inputs
   const getPriceValue = attachNumericInput(body.querySelector('#m-price'), { placeholder: '70000' });
   const getPtoValue   = attachNumericInput(body.querySelector('#m-pto'),   { placeholder: '50000' });
 
@@ -1355,7 +1355,7 @@ export function openOwnerForm(ownerId = null) {
   }
 }
 
-// ---------- FORM TANDAI SUDAH BAYAR ----------
+// ---------- MARK AS PAID FORM ----------
 export function openMarkPaidForm(rentalId, afterSave = null) {
   const r = RentalManager.get(rentalId);
   if (!r) return Toast.error(t('err_rental_not_found'));
@@ -1365,7 +1365,7 @@ export function openMarkPaidForm(rentalId, afterSave = null) {
   const body = document.createElement('div');
   body.innerHTML = `
     <div class="stack" style="gap:14px">
-      <!-- Referensi sistem -->
+      <!-- System reference -->
       <div class="card" style="background:var(--bg-subtle);padding:12px">
         <div class="row row--between" style="font-size:13px">
           <span class="muted">${t('detail_rental_cost')}</span>
@@ -1383,7 +1383,7 @@ export function openMarkPaidForm(rentalId, afterSave = null) {
         </div>
       </div>
 
-      <!-- Input aktual -->
+      <!-- Actual input -->
       <div class="field">
         <label class="field__label required" for="mp-amount">${t('form_payment_amount')}</label>
         <input id="mp-amount" class="input" value="${grandTotal}" />
@@ -1399,7 +1399,7 @@ export function openMarkPaidForm(rentalId, afterSave = null) {
         </select>
       </div>
 
-      <!-- Alasan — muncul jika nominal berbeda (via JS) -->
+      <!-- Reason — shown when the amount differs (via JS) -->
       <div class="field" id="mp-reason-wrap" style="display:none">
         <label class="field__label required" for="mp-reason">${t('form_payment_adjustment_label')}</label>
         <textarea id="mp-reason" class="textarea" rows="2"
@@ -1419,7 +1419,7 @@ export function openMarkPaidForm(rentalId, afterSave = null) {
 
   const getAmount = attachNumericInput(body.querySelector('#mp-amount'), { placeholder: '0' });
 
-  // Live: tampilkan field alasan jika nominal berbeda
+  // Live: show the reason field when the amount differs
   body.querySelector('#mp-amount').addEventListener('input', () => {
     const received = getAmount();
     const diff = received - grandTotal;
@@ -1449,7 +1449,7 @@ export function openMarkPaidForm(rentalId, afterSave = null) {
   });
 }
 
-// ---------- KOREKSI ADMIN (fullyDone, hari yang sama) ----------
+// ---------- ADMIN CORRECTION (fullyDone, same day) ----------
 export function openAdminCorrectForm(rentalId, afterSave = null) {
   const r = RentalManager.get(rentalId);
   if (!r) return Toast.error(t('err_rental_not_found'));
@@ -1516,7 +1516,7 @@ export function openAdminCorrectForm(rentalId, afterSave = null) {
   });
 }
 
-// ---------- EDIT DAMAGE (returned, belum resolved, belum paid) ----------
+// ---------- EDIT DAMAGE (returned, not yet resolved, not yet paid) ----------
 export function openEditDamageForm(rentalId, afterSave = null) {
   const r = RentalManager.get(rentalId);
   if (!r) return Toast.error(t('err_not_found'));

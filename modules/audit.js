@@ -1,7 +1,7 @@
 // =============================================================
 // modules/audit.js
 // AuditManager — track all data mutations (create/update/delete)
-// In Fase A actor defaults to 'system' (Fase B will inject session user)
+// In Phase A the actor defaults to 'system' (Phase B will inject the session user)
 // =============================================================
 
 import { state } from './state.js';
@@ -28,7 +28,7 @@ export const AuditActions = {
   MARK_OWNER_SETTLED: 'mark-owner-settled',
   MARK_DAMAGE_RESOLVED: 'mark-damage-resolved',
   PASSPORT_HOLD: 'passport-hold',          // R9
-  // Auth (Fase B)
+  // Auth (Phase B)
   LOGIN: 'login',
   LOGIN_FAIL: 'login-fail',
   ROLE_CHANGE: 'role-change',
@@ -37,7 +37,7 @@ export const AuditActions = {
   RESET_ALL: 'reset-all',
 };
 
-// Default actor — diganti saat Fase B oleh SessionManager.current()
+// Default actor — replaced in Phase B by SessionManager.current()
 let getActor = () => ({ id: 'system', name: 'system', role: 'system' });
 
 export function setActorResolver(fn) {
@@ -53,7 +53,7 @@ export const AuditManager = {
    * Log sebuah aksi.
    * @param {Object} opts
    * @param {string} opts.entity   — entity type (motor, rental, ...)
-   * @param {string} opts.entityId — id dari entity
+   * @param {string} opts.entityId — id of the entity
    * @param {string} opts.entityLabel — label untuk display
    * @param {string} opts.action   — action constant
    * @param {Object} [opts.changes] — diff { field, from, to } untuk update
@@ -78,7 +78,7 @@ export const AuditManager = {
     return entry;
   },
 
-  // Bantu logging update — compute diff dari objek lama vs patch baru
+  // Update-logging helper — compute the diff between the old object and the new patch
   logUpdate({ entity, entityId, entityLabel, before, patch, note }) {
     const changes = [];
     Object.keys(patch || {}).forEach(k => {
@@ -118,7 +118,7 @@ export const AuditManager = {
     state.set('auditLog', []);
   },
 
-  // Distinct actors (untuk filter dropdown)
+  // Distinct actors (for the filter dropdown)
   distinctActors() {
     const seen = new Map();
     this.list().forEach(e => {
@@ -127,7 +127,7 @@ export const AuditManager = {
     return Array.from(seen.values());
   },
 
-  // Auto-purge entry lebih dari N hari
+  // Auto-purge entries older than N days
   purgeOlderThan(days = 180) {
     const cutoff = new Date(Date.now() - days * 86400000).toISOString();
     const list = this.list().filter(e => e.timestamp >= cutoff);

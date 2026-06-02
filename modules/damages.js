@@ -1,6 +1,6 @@
 // =============================================================
 // modules/damages.js
-// DamageManager — log kerusakan & ganti rugi per motor
+// DamageManager — log damages & recovery charges per motor
 // =============================================================
 
 import { state } from './state.js';

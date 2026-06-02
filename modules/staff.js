@@ -1,6 +1,6 @@
 // =============================================================
 // modules/staff.js
-// StaffManager — manajemen staf (untuk dropdown di rental & check-out)
+// StaffManager — staff management (for dropdowns in rental & check-out)
 // =============================================================
 
 import { state } from './state.js';
@@ -29,12 +29,12 @@ export const StaffManager = {
     return this.list().find(s => (s.name || '').toLowerCase() === q);
   },
 
-  // Hanya staff yang masih active — dipakai di dropdown
+  // Only active staff — used in the dropdown
   active() {
     return this.list().filter(s => s.active !== false);
   },
 
-  // Untuk dropdown: list nama uppercase (sesuai konvensi CSV existing)
+  // For the dropdown: list names in uppercase (matching the existing CSV convention)
   optionsForDropdown() {
     return this.active()
       .slice()
@@ -46,7 +46,7 @@ export const StaffManager = {
     const cleanName = (name || '').trim();
     if (!cleanName) throw new Error('Nama staff wajib diisi');
 
-    // Validasi nama unik
+    // Unique name validation
     const existing = this.getByName(cleanName);
     if (existing) throw new Error(`Staff dengan nama "${cleanName}" sudah ada`);
 
@@ -61,7 +61,7 @@ export const StaffManager = {
     };
     state.add('staff', staff);
     AuditManager.log({
-      entity: AuditEntities.SYSTEM,  // gunakan system karena belum ada AuditEntities.STAFF
+      entity: AuditEntities.SYSTEM,  // use system since there is no AuditEntities.STAFF yet
       entityId: staff.id,
       entityLabel: staffLabel(staff),
       action: AuditActions.CREATE,
@@ -74,7 +74,7 @@ export const StaffManager = {
     const before = this.get(id);
     if (!before) throw new Error('Staff tidak ditemukan');
 
-    // Jika nama diubah, validasi unik (kecuali nama sendiri)
+    // If the name changes, validate uniqueness (excluding its own name)
     if (patch.name && patch.name.trim() !== before.name) {
       const existing = this.getByName(patch.name);
       if (existing && existing.id !== id) {
@@ -113,7 +113,7 @@ export const StaffManager = {
     this.update(id, { active: !s.active });
   },
 
-  // Helper: cari staff by uppercase name (untuk legacy seed yang pakai 'AMY', 'SAWAL' dll)
+  // Helper: find staff by uppercase name (for legacy seed data using 'AMY', 'SAWAL', etc.)
   findByUpperName(upperName) {
     const q = (upperName || '').toUpperCase();
     return this.list().find(s => (s.name || '').toUpperCase() === q);

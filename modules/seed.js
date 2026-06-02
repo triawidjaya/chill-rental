@@ -1,7 +1,7 @@
 // =============================================================
 // modules/seed.js
-// Demo data — diambil dari data operasional Chill Rental
-// User bisa "Muat Data Demo" untuk mulai dengan data nyata
+// Demo data — taken from Chill Rental operational data
+// Users can "Load Demo Data" to start with realistic data
 // =============================================================
 
 import { state } from './state.js';
@@ -24,8 +24,8 @@ const ownersSeed = [
   { id: 'own_aqderun', name: 'AQ DERUN', type: 'staff',    payToOwner: 50000, phone: '' },
 ];
 
-// Subset motor dari DataBase CSV (sample representatif tiap kategori)
-// surfrack=true tersebar (Pipes area surfing — ~35% armada punya surfrack)
+// Subset of motors from the DataBase CSV (a representative sample of each category)
+// surfrack=true is spread out (Pipes is a surfing area — ~35% of the fleet has a surfrack)
 const motorsSeed = [
   // A — Properti
   { plate: 'DR 2730 UP', desc: 'Beat Merah Hitam (RC)', ownerId: 'own_pipes', category: 'A', price: 70000, cc: '110 - 125', status: 'rented',    surfrack: true },
@@ -61,7 +61,7 @@ const motorsSeed = [
   { plate: 'DR 2370 US', desc: 'Beat Hitam',             ownerId: 'own_masnun', category: 'C', price: 70000, cc: '110 - 125', status: 'available', surfrack: false },
 ];
 
-// Sample rentals dari DataEntry CSV
+// Sample rentals from the DataEntry CSV
 const rentalsSeed = [
   {
     guest: 'Gavin Kone', start: '2025-12-20T08:18', finish: '2026-01-29T10:00',
@@ -126,7 +126,7 @@ const rentalsSeed = [
   },
 ];
 
-// Seed staff dari nama yang muncul di CSV DataEntry Pipes
+// Seed staff from the names that appear in the DataEntry Pipes CSV
 const staffSeed = [
   { name: 'AMY',   role: 'staff' },
   { name: 'SAWAL', role: 'staff' },
@@ -160,10 +160,10 @@ export function loadSeedData() {
   }));
   state.set('staff', staffWithMeta);
 
-  // 2. Motors — status & currentRentalId akan di-recompute di bawah berdasarkan rentals aktif
+  // 2. Motors — status & currentRentalId are recomputed below based on active rentals
   const motorsWithMeta = motorsSeed.map(m => {
     const owner = ownersSeed.find(o => o.id === m.ownerId);
-    // PTO per motor — fallback 71% dari harga jika tidak diset
+    // PTO per motor — fall back to 71% of the price if not set
     const pto = m.pto != null ? m.pto : Math.round(m.price * 0.71);
     return {
       id: uid('mot'),
@@ -178,7 +178,7 @@ export function loadSeedData() {
       hasSurfrack: !!m.surfrack,
       phoneHolder: !!m.phoneHolder,
       gps: !!m.gps,
-      status: 'available',           // default → akan jadi 'rented' kalau ada active rental yang ref motor ini
+      status: 'available',           // default → becomes 'rented' if an active rental references this motor
       currentRentalId: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -192,7 +192,7 @@ export function loadSeedData() {
     const motor = motorsWithMeta.find(m => m.plate.toLowerCase() === r.plate.toLowerCase());
     const rentalId = uid('rnt');
     const totalCost = r.payToOwner + r.commission;
-    // Multi-flag mapping dari status lama
+    // Multi-flag mapping from the old status
     const isCompletedOld = r.status === 'completed';
     const newStatus = isCompletedOld ? 'returned' : r.status;
     const ptoPerDay = r.days > 0 ? Math.round(r.payToOwner / r.days) : 50000;
@@ -201,12 +201,12 @@ export function loadSeedData() {
       id: rentalId,
       guestName: r.guest,
       passportNo: '',
-      // ---- Passport workflow (multi-fase) ----
+      // ---- Passport workflow (multi-phase) ----
       propertyCheckedOut: false,
-      passportHeld: r.status === 'active',     // demo: rental aktif anggap passport held (TBC actual seeding R9)
+      passportHeld: r.status === 'active',     // demo: assume active rentals have the passport held (TBC actual seeding R9)
       passportHeldAt: r.status === 'active' ? r.start : null,
-      keepPassport: r.status === 'active',     // backward compat, akan dihapus di R9
-      // ---- Tanggal ----
+      keepPassport: r.status === 'active',     // backward compat, to be removed in R9
+      // ---- Dates ----
       startDate: r.start,
       finishDate: r.finish,
       actualFinishDate: isCompletedOld ? r.finish : null,

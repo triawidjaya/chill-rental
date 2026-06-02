@@ -20,13 +20,6 @@ export const formatDate = (iso) => {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-export const formatDateShort = (iso) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d)) return '—';
-  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-};
-
 export const formatDateTime = (iso) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -35,11 +28,6 @@ export const formatDateTime = (iso) => {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
-};
-
-export const toISODate = (date) => {
-  const d = date ? new Date(date) : new Date();
-  return d.toISOString().slice(0, 10);
 };
 
 export const toISODateTime = (date) => {
@@ -60,17 +48,17 @@ export const daysBetween = (startISO, endISO) => {
 };
 
 /**
- * Hitung total hari rental sesuai aturan cut-off 11:00 AM:
- * - Hari dihitung per TANGGAL kalender (bukan 24 jam)
- * - Cut-off jam 11:00 AM:
- *     - Kembali < 11:00 → tanggal kembali TIDAK dihitung
- *     - Kembali >= 11:00 → tanggal kembali IKUT dihitung
- * - Minimum 1 hari
+ * Compute total rental days using the 11:00 AM cut-off rule:
+ * - Days are counted per CALENDAR DATE (not per 24 hours)
+ * - Cut-off at 11:00 AM:
+ *     - Returned before 11:00 → return date is NOT counted
+ *     - Returned at/after 11:00 → return date IS counted
+ * - Minimum 1 day
  *
- * @param {string} startISO - ISO datetime mulai sewa
- * @param {string} endISO   - ISO datetime selesai/kembali aktual
- * @param {number} cutoffHour - Default 11 (jam 11:00 AM)
- * @returns {number} jumlah hari yang di-charge
+ * @param {string} startISO - ISO datetime when the rental starts
+ * @param {string} endISO   - ISO datetime when actually returned/finished
+ * @param {number} cutoffHour - Default 11 (11:00 AM)
+ * @returns {number} number of days to charge
  */
 export const calcRentalDays = (startISO, endISO, cutoffHour = 11) => {
   if (!startISO || !endISO) return 0;
@@ -78,20 +66,20 @@ export const calcRentalDays = (startISO, endISO, cutoffHour = 11) => {
   const e = new Date(endISO);
   if (isNaN(s) || isNaN(e)) return 0;
 
-  // Selisih tanggal kalender (tanpa komponen jam)
+  // Calendar-date difference (ignoring the time component)
   const sDate = new Date(s.getFullYear(), s.getMonth(), s.getDate());
   const eDate = new Date(e.getFullYear(), e.getMonth(), e.getDate());
   const dayDiff = Math.round((eDate - sDate) / 86400000);
 
-  // Jam kembali < cutoff → tanggal kembali tidak dihitung
+  // Return time before cut-off → return date is not counted
   const beforeCutoff = e.getHours() < cutoffHour;
   const days = dayDiff + (beforeCutoff ? 0 : 1);
   return Math.max(days, 1);
 };
 
 /**
- * Helper untuk dashboard reminder: cek apakah rental aktif
- * sudah melewati cut-off hari ini (siap di-charge tambahan).
+ * Dashboard reminder helper: check whether an active rental
+ * has passed today's cut-off (ready for an extra day charge).
  */
 export const isPastCutoffToday = (cutoffHour = 11) => {
   const now = new Date();
@@ -99,7 +87,7 @@ export const isPastCutoffToday = (cutoffHour = 11) => {
 };
 
 /**
- * Helper: cek apakah finishDate (perkiraan) sudah lewat
+ * Helper: check whether the estimated finishDate has already passed
  */
 export const isEstimateExpired = (estimateISO) => {
   if (!estimateISO) return false;
@@ -107,17 +95,9 @@ export const isEstimateExpired = (estimateISO) => {
 };
 
 /**
- * Parse angka dari string berformat (hapus semua non-digit)
- */
-export const parseFormattedNumber = (str) => {
-  if (str == null || str === '') return 0;
-  return Number(String(str).replace(/\D/g, '')) || 0;
-};
-
-/**
- * Attach live thousand-separator ke input element.
- * Ganti type="number" ke type="text" dengan format otomatis.
- * Returns getter function untuk ambil nilai numerik.
+ * Attach a live thousand-separator to an input element.
+ * Switches type="number" to type="text" with automatic formatting.
+ * Returns a getter function to read the numeric value.
  *
  * Usage:
  *   const getCharge = attachNumericInput(document.getElementById('co-charge'));
@@ -135,7 +115,7 @@ export const attachNumericInput = (el, { placeholder = '0' } = {}) => {
     el.value = n === 0 ? '' : n.toLocaleString('id-ID');
   };
 
-  // Format nilai awal
+  // Format the initial value
   applyFormat();
 
   el.addEventListener('input', () => {
@@ -149,14 +129,6 @@ export const attachNumericInput = (el, { placeholder = '0' } = {}) => {
 
 export const uid = (prefix = 'id') => {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-};
-
-export const debounce = (fn, delay = 250) => {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), delay);
-  };
 };
 
 export const escapeHTML = (str) => {

@@ -37,17 +37,17 @@ export const Modal = {
       else if (footer instanceof Node) footerEl.appendChild(footer);
     }
 
-    // Tombol [data-close] selalu aktif
+    // [data-close] buttons are always active
     wrap.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => this.close()));
 
-    // Klik backdrop & Escape hanya aktif jika closeOnBackdrop=true (modal confirm)
-    // Form data pakai closeOnBackdrop=false (default) supaya tidak hilang tidak sengaja
+    // Backdrop click & Escape only work when closeOnBackdrop=true (confirm modal)
+    // Form data uses closeOnBackdrop=false (default) so it is not lost accidentally
     if (closeOnBackdrop) {
       wrap.addEventListener('click', (e) => { if (e.target === wrap) this.close(); });
       modalEscHandler = (e) => { if (e.key === 'Escape') this.close(); };
       document.addEventListener('keydown', modalEscHandler);
     } else {
-      // Escape tetap berfungsi tapi hanya di modal confirm, bukan form
+      // Escape still works but only in the confirm modal, not in forms
       modalEscHandler = null;
     }
 
@@ -75,9 +75,9 @@ export const Modal = {
 
   confirm({ title = 'Konfirmasi', message, confirmText = 'Ya', cancelText = 'Batal', variant = 'brand' }) {
     return new Promise((resolve) => {
-      // BUG-FIX: resolve HARUS dipanggil SEBELUM Modal.close() supaya tidak
-      // tertimpa oleh onClose handler (yang akan trigger resolve(false)).
-      // Promise.resolve() idempotent — call pertama yang menang.
+      // BUG-FIX: resolve MUST be called BEFORE Modal.close() so it is not
+      // overridden by the onClose handler (which would trigger resolve(false)).
+      // Promise.resolve() is idempotent — the first call wins.
       const settle = (value) => { resolve(value); Modal.close(); };
 
       const footer = document.createElement('div');
@@ -98,7 +98,7 @@ export const Modal = {
         title,
         body: `<p style="color:var(--text-secondary)">${message}</p>`,
         footer,
-        closeOnBackdrop: true,   // dialog konfirmasi boleh ditutup klik luar / Escape
+        closeOnBackdrop: true,   // a confirm dialog may be closed by outside click / Escape
         onClose: () => resolve(false),
       });
     });

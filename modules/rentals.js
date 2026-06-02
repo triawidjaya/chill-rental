@@ -8,14 +8,15 @@ import { state } from './state.js';
 import { uid, daysBetween, calcRentalDays } from './utils.js';
 import { MotorManager, MotorStatus } from './motors.js';
 import { t } from './i18n.js';
-// OwnerManager tidak lagi di-import setelah R3 (PTO pindah ke motor)
+// OwnerManager is no longer imported after R3 (PTO moved to the motor)
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
 
 const rentalLabel = (r) => r ? `${r.guestName} · ${r.motorPlate || ''}` : '(unknown)';
 
 /**
- * Total yang harus dibayar tamu = biaya sewa + ganti rugi damage (jika ada).
- * Pisahkan dari totalCost agar laporan keuangan tetap bisa bedain sewa vs damage recovery.
+ * Total the guest must pay = rental cost + damage recovery (if any).
+ * Kept separate from totalCost so financial reports can still distinguish
+ * rental revenue from damage recovery.
  */
 export const getRentalGrandTotal = (r) => {
   if (!r) return 0;
@@ -24,17 +25,17 @@ export const getRentalGrandTotal = (r) => {
 
 export const RentalStatus = {
   ACTIVE: 'active',
-  RETURNED: 'returned',     // R6/R7: motor kembali fisik, biaya final dihitung
-  COMPLETED: 'completed',   // legacy — auto-migrated ke returned, jangan dipakai di code baru
+  RETURNED: 'returned',     // R6/R7: motor physically returned, final cost computed
+  COMPLETED: 'completed',   // legacy — auto-migrated to returned, do not use in new code
   CANCELLED: 'cancelled',
 };
 
 /**
- * Compute multi-flag badge dari rental.
- * Mengembalikan { primary, secondary?, fullyDone }
- *   - primary: badge utama berdasarkan lifecycle (Aktif / Menunggu Bayar / Menunggu Settle / Selesai / Batal)
- *   - secondary: badge tambahan (mis. 'Damage Pending') — opsional
- *   - fullyDone: true jika semua flag complete (untuk hide 3 tombol aksi di R8)
+ * Compute the multi-flag badge for a rental.
+ * Returns { primary, secondary?, fullyDone }
+ *   - primary: main badge based on lifecycle (Active / Awaiting Payment / Awaiting Settle / Done / Cancelled)
+ *   - secondary: extra badge (e.g. 'Damage Pending') — optional
+ *   - fullyDone: true when all flags are complete (used to hide the 3 action buttons in R8)
  */
 export function getRentalBadge(r) {
   if (!r) return { primary: { label: '—', cls: '' }, fullyDone: false };
@@ -57,7 +58,7 @@ export function getRentalBadge(r) {
     return { primary: { label: `🟢 ${t('badge_active')}`, cls: 'badge--success' }, fullyDone: false };
   }
 
-  // Returned — cek 3 flag
+  // Returned — check the 3 flags
   if (isReturned) {
     const secondary = (r.newDamage && !r.damageResolved)
       ? { label: `🟠 ${t('badge_damage_pending')}`, cls: 'badge--warning' }
@@ -87,13 +88,6 @@ export function renderRentalBadge(r) {
   return html;
 }
 
-export const PaymentMethod = {
-  CASH_BOX: 'Cash Box',
-  CREDIT_CARD: 'Credit Card',
-  TRANSFER: 'Transfer',
-  QRIS: 'QRIS',
-};
-
 export const RentalManager = {
   list() {
     return state.get('rentals') || [];
@@ -107,8 +101,8 @@ export const RentalManager = {
     return this.list().filter(r => r.status === RentalStatus.ACTIVE);
   },
 
-  // R6/R7: "completed" semantik = sudah returned (legacy 'completed' juga termasuk).
-  // Untuk filter UI yang specific (mis. menunggu bayar), gunakan helper baru di R7.
+  // R6/R7: "completed" semantics = already returned (legacy 'completed' is included too).
+  // For specific UI filters (e.g. awaiting payment), use the newer R7 helpers.
   completed() {
     return this.list().filter(r =>
       r.status === RentalStatus.RETURNED || r.status === RentalStatus.COMPLETED
@@ -123,21 +117,21 @@ export const RentalManager = {
 
   /**
    * Check-in / new rental.
-   * Motor langsung set status=rented.
-   * finishDate OPSIONAL (perkiraan saja).
-   * Biaya TIDAK dihitung di sini — hanya saat check-out aktual.
+   * Motor is immediately set to status=rented.
+   * finishDate is OPTIONAL (an estimate only).
+   * Cost is NOT computed here — only at actual check-out.
    */
   checkIn({
     guestName,
     wa = '',
     email = '',
     passportNo = '',
-    startDate, finishDate = null, // ISO datetime — finish opsional/perkiraan
+    startDate, finishDate = null, // ISO datetime — finish is optional/estimated
     motorId,
     pricePerDay,
     payToOwner,
     staffGivesKey,
-    paymentMethod = '',           // R5: metode bayar dipilih saat check-out, bukan check-in
+    paymentMethod = '',           // R5: payment method is chosen at check-out, not check-in
     notes = '',
   }) {
     const motor = MotorManager.get(motorId);
@@ -145,17 +139,17 @@ export const RentalManager = {
     if (motor.status === MotorStatus.RENTED) throw new Error('Motor sedang disewa');
 
     const ppd = Number(pricePerDay) || motor.pricePerDay || 70000;
-    // PTO per hari (rate). Sumber prioritas (R3):
-    //   1. argumen payToOwner (jika di-pass eksplisit)
-    //   2. motor.payToOwnerPerDay (sumber utama setelah R1 — PTO sudah pindah ke motor)
-    //   3. fallback: pricePerDay × 0.71 (rasio 50k/70k)
+    // PTO per day (rate). Source priority (R3):
+    //   1. payToOwner argument (if passed explicitly)
+    //   2. motor.payToOwnerPerDay (main source after R1 — PTO moved to the motor)
+    //   3. fallback: pricePerDay × 0.71 (50k/70k ratio)
     const ptoPerDay = (payToOwner != null && payToOwner !== '' && !isNaN(Number(payToOwner)))
       ? Number(payToOwner)
       : (motor.payToOwnerPerDay != null && !isNaN(Number(motor.payToOwnerPerDay)))
         ? Number(motor.payToOwnerPerDay)
         : Math.round(ppd * 0.71);
 
-    // Estimasi hari hanya untuk display (jika finishDate diisi)
+    // Estimated days are display-only (when finishDate is provided)
     const estimateDays = finishDate ? calcRentalDays(startDate, finishDate) : 0;
 
     const rental = {
@@ -164,38 +158,38 @@ export const RentalManager = {
       wa: (wa || '').trim(),
       email: (email || '').trim(),
       passportNo: (passportNo || '').trim(),
-      // Passport workflow (R1 — passport dipegang saat tamu check-out dari properti + extend)
+      // Passport workflow (R1 — passport is held when the guest checks out of the property + extends)
       propertyCheckedOut: false,
       passportHeld: false,
       passportHeldAt: null,
       startDate,
-      finishDate,            // PERKIRAAN — hanya pengingat
-      actualFinishDate: null, // FINAL — diisi saat check-out, dipakai untuk hitung biaya
+      finishDate,            // ESTIMATE — reminder only
+      actualFinishDate: null, // FINAL — filled at check-out, used to compute cost
       motorId,
       motorPlate: motor.plate,
       motorDescription: motor.description,
       ownerId: motor.ownerId,
       ownerName: motor.ownerName,
       pricePerDay: ppd,
-      payToOwnerPerDay: ptoPerDay,  // rate per hari
-      totalDays: estimateDays,       // estimasi, di-update saat checkout
-      totalCost: 0,                  // 0 sampai check-out
-      payToOwner: 0,                 // 0 sampai check-out
-      commission: 0,                 // 0 sampai check-out
+      payToOwnerPerDay: ptoPerDay,  // per-day rate
+      totalDays: estimateDays,       // estimate, updated at checkout
+      totalCost: 0,                  // 0 until check-out
+      payToOwner: 0,                 // 0 until check-out
+      commission: 0,                 // 0 until check-out
       paymentMethod,
       staffGivesKey: (staffGivesKey || '').trim().toUpperCase(),
       staffReceivesKey: '',
       newDamage: false,
       damageDescription: '',
       damageCharge: 0,
-      damageResolved: true,   // R7: no damage at check-in → resolved=true secara default
+      damageResolved: true,   // R7: no damage at check-in → resolved=true by default
       // Multi-flag status (R7)
       status: RentalStatus.ACTIVE,
       paid: false,
       paidAt: null,
       ownerSettled: false,
       ownerSettledAt: null,
-      ownerPaid: false,       // backward-compat (akan dihapus setelah semua UI pakai ownerSettled)
+      ownerPaid: false,       // backward-compat (to be removed once all UI uses ownerSettled)
       notes,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -212,9 +206,9 @@ export const RentalManager = {
   },
 
   /**
-   * Check-out — motor kembali fisik dari tamu. Hitung biaya final dengan aturan 11 AM.
-   * R6: status set ke 'returned' (BUKAN 'completed').
-   * Aksi 'tandai sudah bayar' & 'tandai settle owner' = aksi terpisah di R8.
+   * Check-out — motor physically returned by the guest. Compute final cost with the 11 AM rule.
+   * R6: status set to 'returned' (NOT 'completed').
+   * The 'mark as paid' & 'mark owner settled' actions are separate actions in R8.
    */
   checkOut(rentalId, {
     actualFinishDate, staffReceivesKey,
@@ -227,7 +221,7 @@ export const RentalManager = {
     if (!rental) throw new Error('Rental tidak ditemukan');
     if (rental.status !== RentalStatus.ACTIVE) throw new Error('Rental tidak aktif (sudah returned atau cancelled)');
 
-    // Validasi range actualFinishDate
+    // Validate the actualFinishDate range
     const finish = actualFinishDate || new Date().toISOString();
     const finishMs = new Date(finish).getTime();
     const startMs  = new Date(rental.startDate).getTime();
@@ -236,10 +230,10 @@ export const RentalManager = {
     if (finishMs < startMs) throw new Error('Tanggal check-out tidak boleh sebelum tanggal check-in');
     if (finishMs > nowMs + twoHours) throw new Error('Tanggal check-out tidak boleh lebih dari 2 jam ke depan');
 
-    // Pakai aturan cut-off 11:00 AM
+    // Apply the 11:00 AM cut-off rule
     const days = calcRentalDays(rental.startDate, finish, cutoffHour);
     const totalCost = rental.pricePerDay * days;
-    // payToOwnerPerDay dari rate yang disimpan saat check-in
+    // payToOwnerPerDay from the rate stored at check-in
     const ptoPerDay = rental.payToOwnerPerDay != null
       ? rental.payToOwnerPerDay
       : (rental.totalDays > 0 ? Math.round(rental.payToOwner / rental.totalDays) : 50000);
@@ -258,9 +252,9 @@ export const RentalManager = {
       newDamage,
       damageDescription,
       damageCharge: Number(damageCharge) || 0,
-      damageResolved: !newDamage,  // R7: auto-true jika no damage; jika ada damage, perlu aksi terpisah
+      damageResolved: !newDamage,  // R7: auto-true if no damage; if there is damage, a separate action is needed
       status: RentalStatus.RETURNED,
-      // paid, ownerSettled — TETAP false, akan di-set via aksi terpisah (R8)
+      // paid, ownerSettled — STAY false, set via separate actions (R8)
     });
 
     MotorManager.setStatus(rental.motorId, MotorStatus.AVAILABLE, null);
@@ -271,7 +265,7 @@ export const RentalManager = {
       note: `${days} hari · total ${totalCost.toLocaleString('id-ID')}${newDamage ? ' · ada kerusakan' : ''}${checkoutReason ? ` · alasan: ${checkoutReason}` : ''} · status: returned`,
     });
 
-    // Catat damage jika ada
+    // Record damage if any
     if (newDamage && damageDescription) {
       import('./damages.js').then(({ DamageManager }) => {
         DamageManager.create({
@@ -288,9 +282,9 @@ export const RentalManager = {
   },
 
   /**
-   * R10 — Edit detail rental aktif (koreksi kesalahan input).
-   * Hanya bisa untuk status='active'. Setelah returned/cancelled, immutable.
-   * Jika motorId berubah: motor lama → available, motor baru → rented (harus available dulu).
+   * R10 — Edit the details of an active rental (fix input mistakes).
+   * Only allowed for status='active'. After returned/cancelled, it is immutable.
+   * If motorId changes: old motor → available, new motor → rented (must be available first).
    */
   editRental(rentalId, patch) {
     const rental = this.get(rentalId);
@@ -299,7 +293,7 @@ export const RentalManager = {
       throw new Error('Hanya rental aktif yang bisa diedit. Rental sudah returned/cancelled — immutable.');
     }
 
-    // Whitelist field yang BOLEH di-edit (sisanya di-ignore untuk safety)
+    // Whitelist of editable fields (everything else is ignored for safety)
     const allowed = ['guestName', 'wa', 'email', 'startDate', 'finishDate', 'staffGivesKey', 'notes'];
     const safePatch = {};
     allowed.forEach(k => {
@@ -320,12 +314,12 @@ export const RentalManager = {
         throw new Error(`Motor ${newMotor.plate} sedang disewa — pilih motor available`);
       }
 
-      // Lepas motor lama
+      // Release the old motor
       MotorManager.setStatus(rental.motorId, MotorStatus.AVAILABLE, null);
-      // Pasang motor baru
+      // Assign the new motor
       MotorManager.setStatus(newMotor.id, MotorStatus.RENTED, rentalId);
 
-      // Update snapshot motor info di rental
+      // Update the motor info snapshot on the rental
       safePatch.motorId = newMotor.id;
       safePatch.motorPlate = newMotor.plate;
       safePatch.motorDescription = newMotor.description;
@@ -350,7 +344,7 @@ export const RentalManager = {
     const rental = this.get(rentalId);
     if (!rental) return;
 
-    // Guard: blok jika motor sudah digunakan >0 hari
+    // Guard: block if the motor has already been used >0 days
     const daysSoFar = calcRentalDays(rental.startDate, new Date().toISOString()) - 1;
     if (daysSoFar > 0) {
       throw new Error(
@@ -368,11 +362,11 @@ export const RentalManager = {
   },
 
   // =====================================================
-  // R7 — Multi-flag actions (untuk 3 tombol di R8)
+  // R7 — Multi-flag actions (for the 3 buttons in R8)
   // =====================================================
 
   /**
-   * Tandai rental sudah dibayar. Hanya boleh untuk status='returned' dan paid=false.
+   * Mark a rental as paid. Only allowed for status='returned' and paid=false.
    */
   markPaid(rentalId, { paymentMethod = '', amountReceived, adjustmentReason = '' } = {}) {
     const rental = this.get(rentalId);
@@ -387,7 +381,7 @@ export const RentalManager = {
     const received   = amountReceived != null ? Number(amountReceived) : grandTotal;
     const difference = received - grandTotal;
 
-    // Jika nominal berbeda, alasan wajib diisi
+    // If the amount differs, a reason is required
     if (difference !== 0 && !(adjustmentReason || '').trim()) {
       throw new Error('Jumlah diterima berbeda dari tagihan — wajib isi alasan penyesuaian');
     }
@@ -414,7 +408,7 @@ export const RentalManager = {
   },
 
   /**
-   * Tandai kunci & uang sudah diserahkan ke owner. Syarat: returned + paid.
+   * Mark the key & money as handed over to the owner. Requires: returned + paid.
    */
   markOwnerSettled(rentalId) {
     const rental = this.get(rentalId);
@@ -438,9 +432,9 @@ export const RentalManager = {
 
   /**
    * R9 — Passport Hold workflow.
-   * Tamu sudah check-out dari properti tapi extend sewa motor → properti pegang passport fisik.
-   * Set: propertyCheckedOut=true, passportHeld=true, passportHeldAt=now, passportNo.
-   * Hanya untuk rental aktif.
+   * The guest has checked out of the property but extended the motor rental → the property holds the physical passport.
+   * Sets: propertyCheckedOut=true, passportHeld=true, passportHeldAt=now, passportNo.
+   * Active rentals only.
    */
   holdPassport(rentalId, { passportNo }) {
     const rental = this.get(rentalId);
@@ -467,8 +461,8 @@ export const RentalManager = {
   },
 
   /**
-   * Release passport — kalau tamu sudah balik/selesai dan ambil passport.
-   * Tidak menghilangkan record passportNo, hanya flag.
+   * Release passport — when the guest has returned/finished and collects their passport.
+   * Does not remove the passportNo record, only the flag.
    */
   releasePassport(rentalId) {
     const rental = this.get(rentalId);
@@ -488,10 +482,10 @@ export const RentalManager = {
   },
 
   /**
-   * Undo Check-Out — balik rental dari 'returned' ke 'active'.
-   * Guard: hanya bisa jika belum paid (keuangan belum bergerak).
-   * Motor dikembalikan ke status rented.
-   * Damage record yang dibuat saat checkout ikut dihapus.
+   * Undo Check-Out — revert a rental from 'returned' back to 'active'.
+   * Guard: only possible while not yet paid (no money has moved).
+   * The motor is set back to rented.
+   * Any damage record created at checkout is also removed.
    */
   undoCheckOut(rentalId) {
     const rental = this.get(rentalId);
@@ -500,7 +494,7 @@ export const RentalManager = {
     if (!isReturned) throw new Error('Rental belum di-checkout — tidak perlu undo');
     if (rental.paid) throw new Error('Tidak bisa undo check-out — rental sudah dibayar. Batalkan pembayaran dulu');
 
-    // Hapus damage record yang dibuat saat checkout ini (jika ada)
+    // Remove the damage record created during this checkout (if any)
     if (rental.newDamage) {
       import('./damages.js').then(({ DamageManager }) => {
         const linked = DamageManager.list().filter(d => d.rentalId === rentalId);
@@ -508,9 +502,9 @@ export const RentalManager = {
       });
     }
 
-    // Reset semua field hasil checkout, kembali ke state pre-checkout
+    // Reset all checkout-result fields, back to the pre-checkout state
     const estimateDays = rental.finishDate
-      ? (this.get(rentalId)?.totalDays || 0)  // simpan estimasi awal jika ada
+      ? (this.get(rentalId)?.totalDays || 0)  // keep the initial estimate if present
       : 0;
 
     state.update('rentals', rentalId, {
@@ -533,7 +527,7 @@ export const RentalManager = {
       ownerPaid: false,
     });
 
-    // Kembalikan motor ke status rented
+    // Set the motor back to rented
     MotorManager.setStatus(rental.motorId, MotorStatus.RENTED, rentalId);
 
     AuditManager.log({
@@ -545,8 +539,8 @@ export const RentalManager = {
   },
 
   /**
-   * Batal Tandai Bayar — reset paid=false.
-   * Guard: ownerSettled masih false DAN di hari yang sama dengan paidAt.
+   * Unmark Paid — reset paid=false.
+   * Guard: ownerSettled is still false AND on the same day as paidAt.
    */
   unmarkPaid(rentalId) {
     const rental = this.get(rentalId);
@@ -571,9 +565,9 @@ export const RentalManager = {
   },
 
   /**
-   * Flag suspected damage saat rental masih AKTIF.
-   * Staff/owner bisa catat dugaan kerusakan sebelum motor dikembalikan.
-   * Saat checkout, field damage akan pre-filled dari flag ini.
+   * Flag a suspected damage while the rental is still ACTIVE.
+   * Staff/owner can note a suspected damage before the motor is returned.
+   * At checkout, the damage fields will be pre-filled from this flag.
    */
   flagDamage(rentalId, { note = '' }) {
     const rental = this.get(rentalId);
@@ -595,7 +589,7 @@ export const RentalManager = {
   },
 
   /**
-   * Hapus flag suspected damage (jika ternyata salah info).
+   * Clear the suspected-damage flag (if it turns out to be wrong info).
    */
   clearDamageFlag(rentalId) {
     const rental = this.get(rentalId);
@@ -616,8 +610,8 @@ export const RentalManager = {
   },
 
   /**
-   * Undo Tandai Damage Selesai — buka kembali damage ke status pending.
-   * Guard: blocked jika sudah paid (keuangan sudah bergerak).
+   * Undo Mark Damage Resolved — reopen the damage to pending status.
+   * Guard: blocked if already paid (money has moved).
    */
   unmarkDamageResolved(rentalId) {
     const rental = this.get(rentalId);
@@ -636,8 +630,8 @@ export const RentalManager = {
   },
 
   /**
-   * Undo Tandai Settle Owner — batalkan settlement ke owner.
-   * Guard: hanya bisa di-undo di hari yang sama dengan ownerSettledAt.
+   * Undo Mark Owner Settled — cancel the settlement to the owner.
+   * Guard: can only be undone on the same day as ownerSettledAt.
    */
   unmarkOwnerSettled(rentalId) {
     const rental = this.get(rentalId);
@@ -661,9 +655,9 @@ export const RentalManager = {
   },
 
   /**
-   * Edit detail damage (deskripsi & charge).
-   * Bisa diedit kapan saja selama owner belum di-settle.
-   * Jika sudah paid → tercatat sebagai "koreksi post-paid" di audit trail.
+   * Edit damage details (description & charge).
+   * Editable any time while the owner is not yet settled.
+   * If already paid → recorded as a "post-paid correction" in the audit trail.
    */
   editDamage(rentalId, { damageDescription, damageCharge }) {
     const rental = this.get(rentalId);
@@ -678,7 +672,7 @@ export const RentalManager = {
       damageCharge: newCharge,
     });
 
-    // Sync ke damage record di DamageManager jika ada
+    // Sync to the damage record in DamageManager if present
     import('./damages.js').then(({ DamageManager }) => {
       const linked = DamageManager.list().find(d => d.rentalId === rentalId);
       if (linked) DamageManager.update(linked.id, {
@@ -697,7 +691,7 @@ export const RentalManager = {
   },
 
   /**
-   * Tandai damage sudah selesai (dibayar / diperbaiki).
+   * Mark damage as resolved (paid / repaired).
    */
   markDamageResolved(rentalId, { note = '' } = {}) {
     const rental = this.get(rentalId);
@@ -715,17 +709,17 @@ export const RentalManager = {
   },
 
   /**
-   * Koreksi Admin — edit field terbatas pada rental yang sudah fullyDone.
-   * Hanya untuk koreksi administratif (salah catat nominal, metode bayar, catatan).
+   * Admin Correction — edit a limited set of fields on a fully-done rental.
+   * For administrative corrections only (wrong amount, payment method, notes).
    *
-   * Field yang BOLEH diedit:
-   *   - damageCharge  : koreksi nominal ganti rugi
-   *   - paymentMethod : koreksi metode pembayaran yang salah dicatat
-   *   - notes         : tambah/ubah catatan
+   * Editable fields:
+   *   - damageCharge  : correct the damage recovery amount
+   *   - paymentMethod : correct a wrongly recorded payment method
+   *   - notes         : add/change notes
    *
-   * Field yang TIDAK BOLEH diedit (immutable):
+   * Fields that may NOT be edited (immutable):
    *   - startDate, actualFinishDate, totalDays, totalCost
-   *   - semua status flags (paid, ownerSettled, damageResolved, status)
+   *   - all status flags (paid, ownerSettled, damageResolved, status)
    */
   adminCorrect(rentalId, { damageCharge, paymentMethod, notes } = {}) {
     const rental = this.get(rentalId);
@@ -737,7 +731,7 @@ export const RentalManager = {
     );
     if (!isFullyDone) throw new Error('Koreksi admin hanya untuk rental yang sudah selesai sepenuhnya');
 
-    // Guard: hanya bisa koreksi di hari yang sama dengan ownerSettledAt
+    // Guard: corrections only allowed on the same day as ownerSettledAt
     const settledDate = (rental.ownerSettledAt || '').slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
     if (settledDate !== today) throw new Error(
@@ -754,7 +748,7 @@ export const RentalManager = {
       if (oldCharge !== newCharge) {
         changes.push(`damage: ${oldCharge.toLocaleString('id-ID')} → ${newCharge.toLocaleString('id-ID')}`);
 
-        // Sync ke damage record jika ada
+        // Sync to the damage record if present
         import('./damages.js').then(({ DamageManager }) => {
           const linked = DamageManager.list().find(d => d.rentalId === rentalId);
           if (linked) DamageManager.update(linked.id, { charge: newCharge });
@@ -786,7 +780,7 @@ export const RentalManager = {
     return this.get(rentalId);
   },
 
-  // ----- Helper queries untuk dashboard / filter -----
+  // ----- Helper queries for dashboard / filters -----
   awaitingPayment() {
     return this.list().filter(r =>
       (r.status === RentalStatus.RETURNED || r.status === RentalStatus.COMPLETED) && !r.paid
@@ -813,7 +807,7 @@ export const RentalManager = {
 
   // Queries
   countActive() { return this.active().length; },
-  // Hanya hitung passport yang sedang di-hold (R9). Field lama keepPassport sudah tidak dipakai.
+  // Count only passports currently on hold (R9). The old keepPassport field is no longer used.
   countPassportsKept() { return this.active().filter(r => r.passportHeld).length; },
 
   todayStats() {

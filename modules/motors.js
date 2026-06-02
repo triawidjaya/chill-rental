@@ -1,6 +1,6 @@
 // =============================================================
 // modules/motors.js
-// MotorManager — CRUD + queries untuk inventory motor
+// MotorManager — CRUD + queries for the motor inventory
 // =============================================================
 
 import { state } from './state.js';
@@ -8,12 +8,6 @@ import { uid } from './utils.js';
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
 
 const motorLabel = (m) => m ? `${m.plate} — ${m.description}` : '(unknown)';
-
-export const MotorCategories = [
-  { value: 'A', label: 'A — Properti', desc: 'Milik properti sendiri' },
-  { value: 'B', label: 'B — Staff', desc: 'Milik staff' },
-  { value: 'C', label: 'C — Non Staff', desc: 'Titipan luar' },
-];
 
 export const MotorStatus = {
   AVAILABLE: 'available',
@@ -35,7 +29,7 @@ export const MotorManager = {
     return this.list().find(m => (m.plate || '').toLowerCase() === (plate || '').toLowerCase());
   },
 
-  // Validasi plat unique (case-insensitive, trim). Skip motor yang sedang di-edit (excludeId)
+  // Unique plate validation (case-insensitive, trimmed). Skip the motor being edited (excludeId)
   isPlateAvailable(plate, excludeId = null) {
     const target = (plate || '').trim().toUpperCase();
     if (!target) return true;
@@ -54,13 +48,13 @@ export const MotorManager = {
     const cleanPlate = (plate || '').trim().toUpperCase();
     if (!cleanPlate) throw new Error('Plat nomor wajib diisi');
 
-    // Validasi unique
+    // Unique validation
     const existing = this.getByPlateExcluding(cleanPlate);
     if (existing) {
       throw new Error(`Plat "${cleanPlate}" sudah terdaftar untuk motor: ${existing.description || existing.id}`);
     }
 
-    // Validasi Surfrack wajib pilih (boolean true/false, bukan undefined/null)
+    // Surfrack must be explicitly chosen (boolean true/false, not undefined/null)
     if (hasSurfrack !== true && hasSurfrack !== false) {
       throw new Error('Status Surfrack wajib dipilih');
     }
@@ -100,7 +94,7 @@ export const MotorManager = {
     const before = this.get(id);
     if (!before) throw new Error('Motor tidak ditemukan');
 
-    // Jika plat berubah, validasi unique
+    // If the plate changes, validate uniqueness
     if (patch.plate !== undefined) {
       const newPlate = (patch.plate || '').trim().toUpperCase();
       if (!newPlate) throw new Error('Plat nomor wajib diisi');
@@ -113,7 +107,7 @@ export const MotorManager = {
       patch.plate = newPlate;
     }
 
-    // Jika hasSurfrack di-set ke undefined/null, tolak
+    // Reject if hasSurfrack is set to undefined/null
     if ('hasSurfrack' in patch && patch.hasSurfrack !== true && patch.hasSurfrack !== false) {
       throw new Error('Status Surfrack wajib dipilih');
     }
@@ -161,7 +155,7 @@ export const MotorManager = {
     return this.list().filter(m => m.category === cat);
   },
 
-  // Filter helper untuk rental form: CC + Surfrack
+  // Filter helper for the rental form: CC + Surfrack
   byCcAndSurfrack(cc = 'all', surfrack = 'all') {
     return this.available().filter(m => {
       if (cc !== 'all' && m.cc !== cc) return false;

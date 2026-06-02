@@ -164,9 +164,9 @@ export function renderRentals() {
 }
 
 function statusBadge(status, rental) {
-  // R7: gunakan badge multi-flag jika rental diberikan
+  // R7: use the multi-flag badge when a rental is provided
   if (rental) return renderRentalBadge(rental);
-  // Fallback (status only, untuk backward-compat)
+  // Fallback (status only, for backward-compat)
   if (status === 'active') return '<span class="badge badge--success">🟢 Aktif</span>';
   if (status === 'returned' || status === 'completed') return '<span class="badge">Returned</span>';
   if (status === 'cancelled') return '<span class="badge badge--danger">⚪ Batal</span>';

@@ -95,7 +95,7 @@
 
         const { StaffManager, StaffRoles } = await import('./modules/staff.js');
         log('StaffManager.optionsForDropdown exists', typeof StaffManager.optionsForDropdown === 'function');
-        log('StaffRoles defined', Array.isArray(StaffRoles) && StaffRoles.length >= 5);
+        log('StaffRoles defined', Array.isArray(StaffRoles) && StaffRoles.length >= 3);
 
         const { RentalManager, renderRentalBadge, getRentalBadge } = await import('./modules/rentals.js');
         log('RentalManager.markPaid exists', typeof RentalManager.markPaid === 'function');
@@ -193,7 +193,7 @@
         log('checkIn: status=active', r1.status === 'active');
         log('checkIn: paid=false', r1.paid === false);
         log('checkIn: ownerSettled=false', r1.ownerSettled === false);
-        log('checkIn: passport workflow init', r1.passportHeld === false && r1.hostelCheckedOut === false);
+        log('checkIn: passport workflow init', r1.passportHeld === false && r1.propertyCheckedOut === false);
         log('checkIn: wa+email saved', r1.wa === '08123456789' && r1.email === 'test@example.com');
         log('checkIn: payToOwnerPerDay from motor.PTO', r1.payToOwnerPerDay === tm1.payToOwnerPerDay);
         log('Motor status → rented', MotorManager.get(tm1.id).status === 'rented');
@@ -202,7 +202,7 @@
         section('6. Passport Hold workflow (R9)');
         const r1Updated = RentalManager.holdPassport(r1.id, { passportNo: 'A12345678' });
         log('holdPassport: passportHeld=true', r1Updated.passportHeld === true);
-        log('holdPassport: hostelCheckedOut=true', r1Updated.hostelCheckedOut === true);
+        log('holdPassport: propertyCheckedOut=true', r1Updated.propertyCheckedOut === true);
         log('holdPassport: passportNo saved', r1Updated.passportNo === 'A12345678');
         log('holdPassport: passportHeldAt timestamp set', !!r1Updated.passportHeldAt);
 

@@ -16,7 +16,7 @@ export function renderDashboard() {
   const topMotors = ReportEngine.topMotors(5);
   const byCat = ReportEngine.motorsByCategory();
 
-  // Rental yang perlu perhatian (estimasi sudah lewat)
+  // Rentals that need attention (estimate already passed)
   const expiredEstimate = activeAll.filter(r => r.finishDate && isEstimateExpired(r.finishDate));
   const pastCutoffToday = isPastCutoffToday(11);
 
