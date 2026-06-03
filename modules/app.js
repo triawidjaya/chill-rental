@@ -11,6 +11,7 @@ import { Modal, Toast } from './ui/notify.js';
 import { AuditManager, AuditEntities, AuditActions, setActorResolver } from './audit.js';
 import { SessionManager } from './session.js';
 import { StaffManager } from './staff.js';
+import { genSalt, hashPin, verifyPin } from './crypto.js';
 import { AuthGate } from './ui/login.js';
 import { t, renderI18n, setLang, getLang } from './i18n.js';
 import {
@@ -215,17 +216,104 @@ function toggleTheme() {
 }
 
 // ---------- Reset ----------
+// Small password dialog.
+//   mode 'enter' → one field; resolves the typed value.
+//   mode 'set'   → password + confirmation; resolves only when both match.
+// Resolves null on cancel/close. The raw password is never stored — see handleReset.
+function passwordDialog({ title, message, confirmText = 'Lanjut', mode = 'enter' }) {
+  return new Promise((resolve) => {
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <div class="stack" style="gap:12px">
+        ${message ? `<p style="color:var(--text-secondary);margin:0">${message}</p>` : ''}
+        <div class="field">
+          <label class="field__label" for="pwd-1">Password</label>
+          <input id="pwd-1" type="password" class="input" autocomplete="off" />
+        </div>
+        ${mode === 'set' ? `
+        <div class="field">
+          <label class="field__label" for="pwd-2">Ulangi Password</label>
+          <input id="pwd-2" type="password" class="input" autocomplete="off" />
+        </div>` : ''}
+        <p id="pwd-err" style="color:var(--danger);margin:0;font-size:.85em;display:none"></p>
+      </div>
+    `;
+    const footer = document.createElement('div');
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'btn btn--ghost';
+    btnCancel.textContent = 'Batal';
+    btnCancel.onclick = () => { resolve(null); Modal.close(); };
+
+    const btnOk = document.createElement('button');
+    btnOk.className = 'btn';
+    btnOk.textContent = confirmText;
+
+    const showErr = (msg) => {
+      const e = body.querySelector('#pwd-err');
+      e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none';
+    };
+    btnOk.onclick = () => {
+      const v = body.querySelector('#pwd-1').value;
+      const v2 = body.querySelector('#pwd-2')?.value;
+      if (!v || v.length < 4) { showErr('Password minimal 4 karakter.'); return; }
+      if (mode === 'set' && v !== v2) { showErr('Password tidak sama.'); return; }
+      resolve(v); Modal.close();
+    };
+
+    footer.appendChild(btnCancel);
+    footer.appendChild(btnOk);
+    Modal.open({ title, body, footer, closeOnBackdrop: true, onClose: () => resolve(null) });
+    body.querySelectorAll('input').forEach(inp =>
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnOk.click(); }));
+  });
+}
+
 async function handleReset() {
+  const settings = state.get('settings') || {};
+
+  // First time on this device: create the reset password, then stop. The actual
+  // wipe needs a second, deliberate click so setup can never erase data by accident.
+  if (!settings.resetHash || !settings.resetSalt) {
+    const pwd = await passwordDialog({
+      title: 'Buat Password Reset',
+      message: 'Belum ada password reset di perangkat ini. Buat sekarang — password ini wajib dimasukkan setiap kali ingin menghapus data lokal.',
+      confirmText: 'Simpan Password',
+      mode: 'set',
+    });
+    if (!pwd) return;
+    const salt = genSalt();
+    settings.resetSalt = salt;
+    settings.resetHash = await hashPin(pwd, salt);
+    state.set('settings', settings);
+    Toast.success('Password reset dibuat. Klik Reset lagi untuk menghapus data.');
+    return;
+  }
+
+  // Returning: require the reset password before anything destructive.
+  const entry = await passwordDialog({
+    title: 'Konfirmasi Password Reset',
+    message: 'Masukkan password reset untuk melanjutkan.',
+    confirmText: 'Lanjut',
+    mode: 'enter',
+  });
+  if (entry == null) return;
+  if (!(await verifyPin(entry, settings.resetSalt, settings.resetHash))) {
+    Toast.error('Password reset salah.');
+    return;
+  }
+
   const confirmed = await Modal.confirm({
     title: 'Reset Semua Data?',
-    message: 'Tindakan ini akan menghapus seluruh data motor, rental, owner, dan kerusakan. Tidak bisa dibatalkan.',
+    message: 'Tindakan ini menghapus seluruh data motor, rental, owner, dan kerusakan di PERANGKAT INI (data server tidak terhapus). Tidak bisa dibatalkan.',
     confirmText: 'Ya, Hapus Semua',
     cancelText: 'Batal',
     variant: 'danger',
   });
   if (!confirmed) return;
   storage.clearAll();
-  // Reload state from cleared storage
+  // Restore device preferences (theme/lang + the reset password) so the gate
+  // survives a wipe — reset clears business DATA, not your device settings.
+  state.set('settings', settings);
   ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog'].forEach((k) => state.set(k, []));
   AuditManager.log({
     entity: AuditEntities.SYSTEM, entityId: null,
