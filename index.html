@@ -46,17 +46,6 @@
         <button class="icon-btn" id="btn-theme" data-i18n-aria="topbar_theme_aria">
           <svg id="ico-theme" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <!-- Fase B.2: current user + logout -->
-        <span class="user-chip" id="user-chip" hidden>
-          <span class="user-chip__avatar" id="user-avatar">?</span>
-          <span class="user-chip__meta">
-            <span class="user-chip__name" id="user-name"></span>
-            <span class="user-chip__role" id="user-role"></span>
-          </span>
-        </span>
-        <button class="icon-btn" id="btn-logout" hidden data-i18n-aria="auth_logout" title="Keluar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
       </div>
     </header>
 
@@ -101,7 +90,31 @@
         </a>
       </nav>
       <div class="sidebar__footer">
-        <button class="btn btn--ghost btn--block" id="btn-seed" data-requires="data.seed" data-i18n="page_settings_load_demo">Muat Data Demo</button>
+        <!-- Fase B.2: account block (identity + switch user + logout) -->
+        <div class="account" id="account-block" hidden>
+          <div class="account__user">
+            <span class="account__avatar" id="account-avatar">?</span>
+            <span class="account__meta">
+              <span class="account__name" id="account-name"></span>
+              <span class="account__role" id="account-role"></span>
+            </span>
+          </div>
+          <div class="account__actions">
+            <button class="account__btn" id="btn-set-pin-self">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/></svg>
+              <span data-i18n="btn_change_pin">Ubah PIN</span>
+            </button>
+            <button class="account__btn" id="btn-switch-user">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              <span data-i18n="auth_switch_user">Ganti Pengguna</span>
+            </button>
+            <button class="account__btn account__btn--danger" id="btn-logout">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <span data-i18n="auth_logout">Keluar</span>
+            </button>
+          </div>
+        </div>
+
         <p class="muted-xs">v1.0 · Modular Build</p>
       </div>
     </aside>

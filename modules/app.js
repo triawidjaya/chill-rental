@@ -66,9 +66,10 @@ const $sidebar   = document.getElementById('sidebar');
 const $scrim     = document.getElementById('scrim');
 const $btnMenu   = document.getElementById('btn-menu');
 const $btnTheme  = document.getElementById('btn-theme');
-const $btnLogout = document.getElementById('btn-logout');
-const $userChip  = document.getElementById('user-chip');
-const $btnSeed   = document.getElementById('btn-seed');
+const $btnLogout    = document.getElementById('btn-logout');
+const $btnSwitchUser = document.getElementById('btn-switch-user');
+const $btnSetPinSelf = document.getElementById('btn-set-pin-self');
+const $accountBlock = document.getElementById('account-block');
 const $btnFab    = document.getElementById('btn-new-rental');
 const $btnQuickRental = document.getElementById('btn-quick-rental');
 const $kpiCount  = document.getElementById('kpi-active-count');
@@ -145,6 +146,7 @@ function updateSyncStatus(status) {
 
 // ---------- Auth (Fase B.2) ----------
 let appStarted = false;
+let syncEngine = null;
 
 // Hide [data-requires="<action>"] elements the current role may not use.
 function applyPermissions() {
@@ -153,22 +155,20 @@ function applyPermissions() {
   });
 }
 
-// Reflect the logged-in user in the topbar chip.
-function updateUserChip() {
+// Reflect the logged-in user in the sidebar account block.
+function updateAccountBlock() {
   const u = SessionManager.current();
-  if (!$userChip) return;
+  if (!$accountBlock) return;
   if (u) {
-    const av = document.getElementById('user-avatar');
-    const nm = document.getElementById('user-name');
-    const rl = document.getElementById('user-role');
+    const av = document.getElementById('account-avatar');
+    const nm = document.getElementById('account-name');
+    const rl = document.getElementById('account-role');
     if (av) av.textContent = (u.name || '?').trim().charAt(0).toUpperCase() || '?';
     if (nm) nm.textContent = u.name || '';
     if (rl) rl.textContent = t(`role_${u.role}`);
-    $userChip.hidden = false;
-    if ($btnLogout) $btnLogout.hidden = false;
+    $accountBlock.hidden = false;
   } else {
-    $userChip.hidden = true;
-    if ($btnLogout) $btnLogout.hidden = true;
+    $accountBlock.hidden = true;
   }
 }
 
@@ -218,13 +218,18 @@ function toggleTheme() {
 // ---------- Seed / Reset ----------
 async function handleSeed() {
   if (!SessionManager.can('data.seed')) { Toast.error(t('auth_no_access')); return; }
-  const confirmed = await Modal.confirm({
+
+  // Hard confirm: the user must type DEMO. With sync active this OVERWRITES all
+  // data and pushes the demo set to Supabase + every device — never accidental.
+  const confirmed = await confirmByTyping({
     title: 'Muat Data Demo?',
-    message: 'Ini akan mengisi 14 owner, 28 motor, dan 10 rental contoh. Data lama akan ditimpa.',
+    message: '⚠️ Ini menimpa SELURUH data (motor, rental, owner) dengan 14 owner, 28 motor, dan 10 rental contoh — lalu menyinkronkannya ke Supabase dan semua perangkat. Tidak bisa dibatalkan.',
+    keyword: 'DEMO',
     confirmText: 'Muat Demo',
-    cancelText: 'Batal',
+    variant: 'danger',
   });
   if (!confirmed) return;
+
   loadSeedData();
   // Bulk replace bypasses the per-record outbox — queue everything for upload.
   SYNCED_KEYS.forEach((k) => state.markCollectionDirty(k));
@@ -234,6 +239,43 @@ async function handleSeed() {
   });
   Toast.success('Data demo berhasil dimuat');
   renderRoute();
+}
+
+// Type-to-confirm dialog: the confirm button stays disabled until the user types
+// the exact keyword. Returns a Promise<boolean>.
+function confirmByTyping({ title, message, keyword, confirmText = 'Lanjut', variant = 'danger' }) {
+  return new Promise((resolve) => {
+    const body = document.createElement('div');
+    body.innerHTML = `
+      <div class="stack" style="gap:12px">
+        <p style="color:var(--text-secondary);margin:0">${message}</p>
+        <div class="field">
+          <label class="field__label" for="confirm-kw">Ketik <strong>${keyword}</strong> untuk melanjutkan</label>
+          <input id="confirm-kw" class="input" autocomplete="off" placeholder="${keyword}" />
+        </div>
+      </div>
+    `;
+    const footer = document.createElement('div');
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'btn btn--ghost';
+    btnCancel.textContent = 'Batal';
+    btnCancel.onclick = () => { resolve(false); Modal.close(); };
+
+    const btnOk = document.createElement('button');
+    btnOk.className = variant === 'danger' ? 'btn btn--danger' : 'btn';
+    btnOk.textContent = confirmText;
+    btnOk.disabled = true;
+    btnOk.onclick = () => { resolve(true); Modal.close(); };
+
+    footer.appendChild(btnCancel);
+    footer.appendChild(btnOk);
+
+    Modal.open({ title, body, footer, closeOnBackdrop: true, onClose: () => resolve(false) });
+
+    const input = body.querySelector('#confirm-kw');
+    input.addEventListener('input', () => { btnOk.disabled = input.value.trim() !== keyword; });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !btnOk.disabled) btnOk.click(); });
+  });
 }
 
 async function handleReset() {
@@ -319,6 +361,7 @@ function handleImportBackup() {
 const ACTION_PERMISSION = {
   'new-staff':     'staff.manage',
   'edit-staff':    'staff.manage',
+  'seed-demo':     'data.seed',
   'reset-data':    'data.reset',
   'export-backup': 'data.backup',
   'import-backup': 'data.backup',
@@ -373,6 +416,9 @@ function handleAction(action, el) {
     case 'reset-data':
       handleReset();
       break;
+    case 'seed-demo':
+      handleSeed();
+      break;
     case 'set-lang-id':
       setLang('id');
       break;
@@ -407,9 +453,17 @@ function bindEvents() {
     }
   });
   $btnTheme?.addEventListener('click', toggleTheme);
-  $btnSeed?.addEventListener('click', handleSeed);
 
-  // Logout (Fase B.2)
+  // Account block (Fase B.2)
+  const goToGate = () => {
+    SessionManager.logout();
+    appStarted = false;
+    updateAccountBlock();
+    closeSidebar();
+    AuthGate.show({ onAuthenticated: startApp });
+  };
+
+  // Logout — confirm first (you're leaving)
   $btnLogout?.addEventListener('click', async () => {
     const ok = await Modal.confirm({
       title: t('auth_logout_confirm_title'),
@@ -417,15 +471,14 @@ function bindEvents() {
       confirmText: t('auth_logout'),
       cancelText: t('btn_cancel'),
     });
-    if (!ok) return;
-    SessionManager.logout();
-    appStarted = false;
-    updateUserChip();
-    AuthGate.show({ onAuthenticated: startApp });
+    if (ok) goToGate();
   });
 
-  // Click the user chip to set/change your OWN PIN (no staff-management access needed)
-  $userChip?.addEventListener('click', () => {
+  // Switch user — quick hop to the login screen (shared counter device), no confirm
+  $btnSwitchUser?.addEventListener('click', goToGate);
+
+  // Set/change your OWN PIN (no staff-management access needed)
+  $btnSetPinSelf?.addEventListener('click', () => {
     const u = SessionManager.current();
     const me = u && StaffManager.get(u.staffId);
     if (me) openPinDialog(me);
@@ -637,7 +690,7 @@ async function boot() {
     renderRoute();
     renderI18n();
     applyPermissions();
-    updateUserChip();
+    updateAccountBlock();
   });
 
   // Start Supabase sync (offline-first). No-op if modules/config.js is absent
@@ -662,7 +715,7 @@ async function boot() {
 // Render the app proper once a session exists.
 function startApp() {
   appStarted = true;
-  updateUserChip();
+  updateAccountBlock();
 
   // Default hash
   if (!location.hash) location.hash = '#dashboard';
@@ -688,7 +741,5 @@ function startApp() {
     }, 600);
   }
 }
-
-let syncEngine = null;
 
 document.addEventListener('DOMContentLoaded', boot);

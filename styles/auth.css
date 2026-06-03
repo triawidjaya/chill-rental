@@ -95,35 +95,55 @@
   padding-left: 10px; /* offset the letter-spacing on the last char */
 }
 
-/* Topbar user chip */
-.user-chip {
-  display: inline-flex;
-  align-items: center;
+/* Sidebar account block (Fase B.2) */
+.account {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  padding: 4px 8px 4px 4px;
-  border-radius: 999px;
-  background: var(--bg-elev-2);
-  border: 1px solid var(--border-subtle);
 }
-.user-chip[hidden] { display: none; }
-.user-chip__avatar {
-  width: 28px; height: 28px;
+.account[hidden] { display: none; }
+.account__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px;
+}
+.account__avatar {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
   display: grid; place-items: center;
   border-radius: 50%;
   background: var(--brand-soft);
   color: var(--brand-soft-text);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
 }
-.user-chip__meta { display: flex; flex-direction: column; line-height: 1.15; }
-.user-chip__name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.user-chip__role { font-size: 11px; color: var(--text-secondary); }
+.account__meta { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.account__name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account__role { font-size: 11px; color: var(--text-secondary); }
 
-/* On small screens, keep only the avatar to save space */
-@media (max-width: 640px) {
-  .user-chip__meta { display: none; }
-  .user-chip { padding: 4px; }
+.account__actions { display: flex; flex-direction: column; gap: 2px; }
+.account__btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s, color .12s;
 }
+.account__btn:hover { background: var(--bg-elev-2); color: var(--text-primary); }
+.account__btn svg { flex: 0 0 auto; }
+.account__btn--danger:hover { color: var(--danger); }
 
 /* Elements hidden by role-based permission gating */
 [data-requires].is-forbidden { display: none !important; }

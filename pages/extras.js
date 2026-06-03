@@ -109,6 +109,9 @@ export function renderSettings() {
           </div>
         </div>
         <div class="row">
+          <button class="btn btn--ghost" data-action="seed-demo" data-requires="data.seed" style="color:var(--danger);border-color:var(--danger)">
+            ${t('page_settings_load_demo')}
+          </button>
           <button class="btn btn--ghost" data-action="reset-data" data-requires="data.reset" style="color:var(--danger);border-color:var(--danger)">
             ${t('page_settings_reset')}
           </button>
