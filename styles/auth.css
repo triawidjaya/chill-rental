@@ -51,6 +51,18 @@
 }
 .auth-back:hover { color: var(--text-primary); }
 
+.auth-link {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+  padding: 4px;
+  align-self: center;
+}
+.auth-link:hover { color: var(--brand); }
+
 /* Staff picker */
 .auth-staff-list {
   display: flex;

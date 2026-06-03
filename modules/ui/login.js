@@ -41,7 +41,8 @@ export const AuthGate = {
     _onAuth = onAuthenticated || (() => {});
     const r = root();
     if (r) r.hidden = false;
-    if (SessionManager.needsBootstrap()) renderBootstrap();
+    if (SessionManager.needsRecovery()) renderRecover();      // staff exist, no manager
+    else if (SessionManager.needsBootstrap()) renderBootstrap(); // zero staff (first run)
     else renderStaffPicker();
   },
 };
@@ -69,12 +70,15 @@ function renderBootstrap() {
       </div>
       <p id="bs-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
       <button class="btn btn--block" id="bs-go">${t('auth_create_manager')}</button>
+      ${StaffManager.list().length > 0
+        ? `<button class="auth-link" id="bs-to-recover">${t('auth_create_or_recover')}</button>` : ''}
     </div>
   `);
 
   const err = r.querySelector('#bs-err');
   const pin = r.querySelector('#bs-pin');
   pin.addEventListener('input', () => { pin.value = pin.value.replace(/\D/g, ''); });
+  r.querySelector('#bs-to-recover')?.addEventListener('click', renderRecover);
 
   r.querySelector('#bs-go').addEventListener('click', async () => {
     const name = r.querySelector('#bs-name').value.trim();
@@ -86,6 +90,57 @@ function renderBootstrap() {
       const staff = StaffManager.create({ name, role: 'manager', active: true });
       if (pinVal) await SessionManager.setPin(staff.id, pinVal);
       const res = await SessionManager.login(staff.id, pinVal || undefined);
+      if (res.ok) done();
+      else err.textContent = t('auth_err_generic');
+    } catch (e) {
+      err.textContent = e.message || t('auth_err_generic');
+    }
+  });
+}
+
+// ---- Recovery: no manager exists — promote an existing staff member ----
+function renderRecover() {
+  const r = root();
+  const staff = StaffManager.active()
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  r.innerHTML = shell(`
+    <h2 class="auth-title">${t('auth_recover_title')}</h2>
+    <p class="auth-lede">${t('auth_recover_lede')}</p>
+    <div class="stack" style="gap:14px">
+      <div class="field">
+        <label class="field__label required" for="rc-staff">${t('auth_pick_staff')}</label>
+        <select id="rc-staff" class="select">
+          ${staff.map(s => `<option value="${s.id}">${escapeText(s.name)}${s.role ? ' · ' + escapeText(roleLabel(s.role)) : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="rc-pin">${t('auth_pin_optional')}</label>
+        <input id="rc-pin" class="input" type="password" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" />
+        <span class="field__hint">${t('form_staff_pin_hint')}</span>
+      </div>
+      <p id="rc-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
+      <button class="btn btn--block" id="rc-go">${t('auth_promote_login')}</button>
+      <button class="auth-link" id="rc-to-create">${t('auth_recover_or_new')}</button>
+    </div>
+  `);
+
+  const err = r.querySelector('#rc-err');
+  const pin = r.querySelector('#rc-pin');
+  pin.addEventListener('input', () => { pin.value = pin.value.replace(/\D/g, ''); });
+  r.querySelector('#rc-to-create').addEventListener('click', renderBootstrap);
+
+  r.querySelector('#rc-go').addEventListener('click', async () => {
+    const staffId = r.querySelector('#rc-staff').value;
+    const pinVal = pin.value;
+    err.textContent = '';
+    if (!staffId) { err.textContent = t('auth_err_generic'); return; }
+    if (pinVal && !isValidPinFormat(pinVal)) { err.textContent = t('pin_err_format'); return; }
+    try {
+      StaffManager.update(staffId, { role: 'manager' });   // promote
+      if (pinVal) await SessionManager.setPin(staffId, pinVal);
+      const res = await SessionManager.login(staffId, pinVal || undefined);
       if (res.ok) done();
       else err.textContent = t('auth_err_generic');
     } catch (e) {

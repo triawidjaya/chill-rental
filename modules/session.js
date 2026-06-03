@@ -133,8 +133,18 @@ export const SessionManager = {
     return this.rankOf(role) >= need;
   },
 
-  // True when there are no staff at all — boot shows the first-run wizard.
+  // True when no one can administer the system — i.e. there is no ACTIVE manager.
+  // Covers both first-run (zero staff) and the recovery case where staff exist
+  // (e.g. loaded from demo data) but none has the manager role. Boot shows the
+  // bootstrap/recovery screen in that state.
   needsBootstrap() {
-    return (StaffManager.list() || []).length === 0;
+    const staff = StaffManager.list() || [];
+    return !staff.some(s => s.role === 'manager' && s.active !== false);
+  },
+
+  // True when staff exist but none is an active manager (recovery, not first-run).
+  needsRecovery() {
+    const staff = StaffManager.list() || [];
+    return staff.length > 0 && !staff.some(s => s.role === 'manager' && s.active !== false);
   },
 };

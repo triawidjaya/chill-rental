@@ -700,16 +700,22 @@ async function boot() {
     onStatus: updateSyncStatus,
   }).then((e) => { syncEngine = e; }).catch((e) => console.warn('[Sync] init error', e));
 
-  // On a fresh device the staff list may only exist on the server, so when local
-  // is empty we briefly wait for the initial pull before choosing the first-run
-  // wizard vs. the login screen. Returning/offline devices proceed immediately.
-  if (SessionManager.needsBootstrap() && !SessionManager.current()) {
+  // If the system looks adminless (no active manager — fresh device or demo-only
+  // data), wait briefly for the initial pull: a manager may live on the server.
+  if (SessionManager.needsBootstrap()) {
     await Promise.race([syncPromise, new Promise((r) => setTimeout(r, 4000))]);
   }
 
   // Gate the app behind auth.
-  if (SessionManager.isAuthenticated()) startApp();
-  else AuthGate.show({ onAuthenticated: startApp });
+  if (SessionManager.needsBootstrap()) {
+    // Still no manager after sync → force bootstrap/recovery before using the app,
+    // even if a non-manager session exists on this device.
+    AuthGate.show({ onAuthenticated: startApp });
+  } else if (SessionManager.isAuthenticated()) {
+    startApp();
+  } else {
+    AuthGate.show({ onAuthenticated: startApp });
+  }
 }
 
 // Render the app proper once a session exists.
