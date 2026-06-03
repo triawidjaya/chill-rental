@@ -676,6 +676,19 @@ const strings = {
     page_about_arch: 'Modular vanilla JS dengan AppState (single source of truth) + observer pattern. Storage di localStorage, mudah diganti ke backend kapan saja.',
     page_about_modules_label: 'Modul',
     page_about_modules: 'motors · rentals · owners · damages · reports · utils · storage · state — masing-masing bisa di-test dan dimodifikasi terpisah.',
+
+    // WhatsApp receipt modal
+    receipt_copy: 'Salin',
+    receipt_copied: 'Teks struk disalin',
+    receipt_copy_failed: 'Gagal menyalin',
+    receipt_open_wa: 'Buka WhatsApp',
+    receipt_hint: 'Periksa dulu, lalu Salin atau Buka WhatsApp. Teks masih bisa diedit di WhatsApp sebelum dikirim.',
+    wa_section: 'Struk WhatsApp',
+    wa_modal_title: 'Struk WhatsApp',
+    wa_checkin: 'Struk Check-in (tamu)',
+    wa_invoice: 'Invoice Final (tamu)',
+    wa_owner_returned: 'Info Pemilik — Motor Kembali',
+    wa_owner_settlement: 'Struk Settlement (pemilik)',
   },
 
   // =============================================
@@ -1314,6 +1327,19 @@ const strings = {
     page_about_arch: 'Modular vanilla JS with AppState (single source of truth) + observer pattern. Storage in localStorage, easily swappable to a backend.',
     page_about_modules_label: 'Modules',
     page_about_modules: 'motors · rentals · owners · damages · reports · utils · storage · state — each module can be tested and modified independently.',
+
+    // WhatsApp receipt modal
+    receipt_copy: 'Copy',
+    receipt_copied: 'Receipt copied',
+    receipt_copy_failed: 'Copy failed',
+    receipt_open_wa: 'Open WhatsApp',
+    receipt_hint: 'Review first, then Copy or Open WhatsApp. You can still edit it in WhatsApp before sending.',
+    wa_section: 'WhatsApp receipts',
+    wa_modal_title: 'WhatsApp receipt',
+    wa_checkin: 'Check-in receipt (guest)',
+    wa_invoice: 'Final invoice (guest)',
+    wa_owner_returned: 'Owner update — Motor returned',
+    wa_owner_settlement: 'Settlement receipt (owner)',
   },
 };
 

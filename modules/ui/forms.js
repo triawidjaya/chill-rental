@@ -10,6 +10,12 @@ import { StaffManager } from '../staff.js';
 import { RentalManager, renderRentalBadge, getRentalGrandTotal } from '../rentals.js';
 import { formatIDR, daysBetween, calcRentalDays, toISODateTime, escapeHTML, formatDate, attachNumericInput } from '../utils.js';
 import { t } from '../i18n.js';
+import { showReceiptModal } from './receipt-modal.js';
+import {
+  invoiceNo,
+  buildGuestCheckin, buildGuestInvoice,
+  buildOwnerReturned, buildOwnerSettlement,
+} from '../receipts.js';
 
 // ---------- NEW RENTAL ----------
 export function openRentalForm() {
@@ -542,6 +548,28 @@ export function openRentalDetail(rentalId) {
         </div>
         `;
       })() : ''}
+
+      ${(() => {
+        const isReturned = r.status === 'returned' || r.status === 'completed';
+        const btns = [];
+        if (r.status === 'active') {
+          btns.push(`<button class="btn btn--ghost btn--sm btn--block" id="btn-wa-checkin">🟢 ${t('wa_checkin')}</button>`);
+        }
+        if (isReturned) {
+          btns.push(`<button class="btn btn--ghost btn--sm btn--block" id="btn-wa-invoice">🟢 ${t('wa_invoice')}</button>`);
+          btns.push(`<button class="btn btn--ghost btn--sm btn--block" id="btn-wa-owner-returned">🏍 ${t('wa_owner_returned')}</button>`);
+          if (r.ownerSettled) {
+            btns.push(`<button class="btn btn--ghost btn--sm btn--block" id="btn-wa-settlement">🏍 ${t('wa_owner_settlement')}</button>`);
+          }
+        }
+        if (!btns.length) return '';
+        return `
+          <div class="card" style="border-color:var(--border);padding:14px">
+            <div style="font-weight:700;margin-bottom:10px">${t('wa_section')}</div>
+            <div class="stack" style="gap:8px">${btns.join('')}</div>
+          </div>
+        `;
+      })()}
     </div>
   `;
 
@@ -585,6 +613,26 @@ export function openRentalDetail(rentalId) {
     title: t('modal_detail_rental'), body, footer, size: 'lg',
     onClose: () => window.dispatchEvent(new CustomEvent('route:refresh')),
   });
+
+  // WhatsApp receipt buttons — open a read-only preview with Copy / Open WA.
+  // Guest messages carry r.wa (enables Open WA); owner messages are Copy-only.
+  const wireReceipt = (id, build, audience) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', () => {
+      showReceiptModal({
+        title: t('wa_modal_title'),
+        subtitle: `${invoiceNo(r)} · ${r.guestName}`,
+        text: build(r),
+        waNumber: audience === 'guest' ? r.wa : '',
+        onClose: () => setTimeout(() => openRentalDetail(rentalId), 50),
+      });
+    });
+  };
+  wireReceipt('btn-wa-checkin', buildGuestCheckin, 'guest');
+  wireReceipt('btn-wa-invoice', buildGuestInvoice, 'guest');
+  wireReceipt('btn-wa-owner-returned', buildOwnerReturned, 'owner');
+  wireReceipt('btn-wa-settlement', buildOwnerSettlement, 'owner');
 
   if (r.status === 'active') {
     // Live preview of the total cost based on the 11 AM rule

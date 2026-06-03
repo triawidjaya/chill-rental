@@ -325,6 +325,92 @@
         log('Motor has gps field', 'gps' in motorBeforeMigrate);
         log('Motor has payToOwnerPerDay field', 'payToOwnerPerDay' in motorBeforeMigrate);
 
+        // ============ WA RECEIPTS (STEP 1) ============
+        section('11b. WhatsApp receipt builders (Step 1)');
+        const receipts = await import('./modules/receipts.js');
+
+        // invoice-no derivation from id/token
+        log("invoiceNo: 'rnt_lxk2p9_a3f8' → CHILL-LXK2P9",
+          receipts.invoiceNo({ id: 'rnt_lxk2p9_a3f8' }) === 'CHILL-LXK2P9',
+          `got: ${receipts.invoiceNo({ id: 'rnt_lxk2p9_a3f8' })}`);
+        log("invoiceNo: no-underscore id falls back to first 6 chars",
+          receipts.invoiceNo({ id: 'abcdefgh' }) === 'CHILL-ABCDEF');
+        log('invoiceNo: empty/missing id safe',
+          receipts.invoiceNo({}) === 'CHILL-XXXXXX' && receipts.invoiceNo(null) === 'CHILL-XXXXXX');
+
+        // estimate cost = pricePerDay × estimate days
+        log('estimateDays: reads totalDays', receipts.estimateDays({ totalDays: 7 }) === 7);
+        log('estimateDays: 0 when no estimate', receipts.estimateDays({ totalDays: 0 }) === 0);
+        log('estimateCost: 80.000 × 7 = 560.000',
+          receipts.estimateCost({ pricePerDay: 80000, totalDays: 7 }) === 560000);
+
+        // Mock rental WITH damage + pledged passport (released)
+        const mockA = {
+          id: 'rnt_lxk2p9_a3f8', guestName: 'Michael Brown', wa: '08123456789',
+          motorPlate: 'DK 4521 GH', motorDescription: "Honda Vario 160 '23",
+          startDate: '2026-05-25T10:00', finishDate: '2026-05-30T11:00',
+          actualFinishDate: '2026-06-01T12:00', createdAt: '2026-05-25T10:30',
+          totalDays: 7, pricePerDay: 80000, totalCost: 560000,
+          payToOwnerPerDay: 55000, payToOwner: 385000, paymentMethod: 'Cash',
+          newDamage: true, damageCharge: 100000, damageDescription: 'rear fender scratch',
+          passportNo: 'A12345678', passportHeld: false, passportReleasedAt: '2026-06-01T12:00',
+          ownerSettledAt: '2026-06-01T14:15', staffGivesKey: 'ANDI',
+        };
+        // Mock rental NO damage + NO passport
+        const mockB = {
+          id: 'rnt_m8qr4t_zz9', guestName: 'Sarah Lee',
+          motorPlate: 'DK 7890 KL', motorDescription: 'Yamaha NMAX 2023',
+          startDate: '2026-06-01T10:00', actualFinishDate: '2026-06-04T10:00',
+          totalDays: 3, pricePerDay: 100000, totalCost: 300000,
+          payToOwnerPerDay: 71000, payToOwner: 213000, paymentMethod: 'QRIS',
+          newDamage: false, damageCharge: 0,
+        };
+
+        const invA = receipts.buildGuestInvoice(mockA);
+        const invB = receipts.buildGuestInvoice(mockB);
+
+        log('invoice: wrapped in ``` fences', invA.startsWith('```\n') && invA.endsWith('\n```'));
+        log('invoice: shows derived invoice no', invA.includes('CHILL-LXK2P9'));
+        log('invoice A: grand total = Rp 660.000 (rental+damage)', invA.includes('Rp 660.000'));
+        log('invoice A: damage charge + description shown',
+          invA.includes('Rp 100.000') && invA.includes('rear fender scratch'));
+        log('invoice A: passport pledged+released → "Returned"',
+          invA.includes('Passport') && invA.includes('Returned'));
+        log('invoice B: "No Damage" when newDamage=false', invB.includes('No Damage'));
+        log('invoice B: no passport line when never pledged', !invB.includes('Passport'));
+        log('invoice B: total = Rp 300.000', invB.includes('Rp 300.000'));
+
+        const co = receipts.buildGuestCheckin(mockA);
+        log('check-in: header + estimate total', co.includes('CHECK-IN') && co.includes('Rp 560.000'));
+        log('check-in: English closing "Enjoy the ride"', co.includes('Enjoy the ride'));
+
+        const own = receipts.buildOwnerReturned(mockA);
+        log('owner-returned: PTO share Rp 385.000', own.includes('BAGIAN ANDA') && own.includes('Rp 385.000'));
+        log('owner-returned: damage note when damaged', own.includes('ada kerusakan'));
+        const ownB = receipts.buildOwnerReturned(mockB);
+        log('owner-returned B: no damage note when clean', !ownB.includes('ada kerusakan'));
+
+        const settle = receipts.buildOwnerSettlement(mockA);
+        log('owner-settlement: payout Rp 385.000', settle.includes('SETTLEMENT') && settle.includes('Rp 385.000'));
+
+        // Registry sanity
+        log('RECEIPTS registry: 4 stages with build fns',
+          Object.keys(receipts.RECEIPTS).length === 4 &&
+          Object.values(receipts.RECEIPTS).every(s => typeof s.build === 'function'));
+
+        // ---- Step 2: WA + clipboard helpers ----
+        log("normalizeWa: '08123456789' → 628123456789",
+          utils.normalizeWa('08123456789') === '628123456789', utils.normalizeWa('08123456789'));
+        log("normalizeWa: '+62 812-3456-789' strips symbols",
+          utils.normalizeWa('+62 812-3456-789') === '628123456789', utils.normalizeWa('+62 812-3456-789'));
+        log("normalizeWa: already-62 kept", utils.normalizeWa('628111222') === '628111222');
+        log("normalizeWa: bare 8xxxx gets 62", utils.normalizeWa('8123456') === '628123456');
+        log("normalizeWa: empty → ''", utils.normalizeWa('') === '' && utils.normalizeWa(null) === '');
+        log("waLink: builds wa.me URL with encoded text",
+          utils.waLink('08123', 'Hi A&B') === 'https://wa.me/628123?text=Hi%20A%26B', utils.waLink('08123', 'Hi A&B'));
+        log("waLink: '' when no number", utils.waLink('', 'x') === '');
+        log("copyText exists", typeof utils.copyText === 'function');
+
         // ============ CLEANUP ============
         section('12. Cleanup');
         MotorManager.remove(tm1.id);

@@ -167,6 +167,68 @@ export const toCSV = (rows, columns) => {
   return header + '\n' + body;
 };
 
+// =============================================================
+// WhatsApp & clipboard helpers (for plain-text receipts)
+// =============================================================
+
+/**
+ * Normalize a phone number into the digits-only international form wa.me wants.
+ *   "08123456789"        -> "628123456789"
+ *   "+62 812-3456-789"   -> "628123456789"
+ *   "812..." (bare)      -> "62812..."
+ * A leading 0 becomes 62; a bare 8xxxx gets 62 prepended; anything already
+ * starting with a country code (62, 61, 1, ...) is kept as-is.
+ */
+export const normalizeWa = (num) => {
+  const digits = String(num || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('0')) return '62' + digits.slice(1);
+  if (digits.startsWith('62')) return digits;
+  if (digits.startsWith('8')) return '62' + digits;
+  return digits;
+};
+
+/**
+ * Build a wa.me deep link that opens WhatsApp with the message pre-filled.
+ * Returns '' when there is no usable number.
+ */
+export const waLink = (num, text) => {
+  const n = normalizeWa(num);
+  if (!n) return '';
+  return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
+};
+
+/**
+ * Copy text to the clipboard. Uses the async Clipboard API when available
+ * (secure context) and falls back to a hidden textarea + execCommand for
+ * older browsers / non-secure origins (e.g. plain http://localhost setups).
+ * Returns true on success.
+ */
+export const copyText = async (text) => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (_) { /* fall through to legacy path */ }
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (_) {
+    return false;
+  }
+};
+
 export const downloadFile = (content, filename, mime = 'text/csv') => {
   const blob = new Blob([content], { type: mime + ';charset=utf-8' });
   const url = URL.createObjectURL(blob);

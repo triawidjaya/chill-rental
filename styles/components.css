@@ -37,6 +37,37 @@
 }
 .btn--soft:hover { background: var(--brand-soft); filter: brightness(0.95); }
 
+/* WhatsApp green — Open WhatsApp action in the receipt modal */
+.btn--wa { background: #25d366; color: #06351a; }
+.btn--wa:hover { background: #1ebe5b; }
+
+/* ===== WhatsApp receipt modal ===== */
+.receipt-modal__sub {
+  margin: 0 0 var(--sp-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.receipt-modal__preview {
+  margin: 0;
+  padding: var(--sp-4);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre;          /* keep the monospace columns aligned */
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 52vh;
+}
+.receipt-modal__hint {
+  margin: var(--sp-3) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
 .btn--danger { background: var(--danger); }
 .btn--danger:hover { background: var(--c-rose-500); }
 
