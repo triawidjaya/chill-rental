@@ -6,7 +6,7 @@
 
 import { state, SYNCED_KEYS } from './state.js';
 import { storage } from './storage.js';
-import { initSync } from './supabase.js';
+import { initSync, isSupabaseConfigured, supaAuth } from './supabase.js';
 import { loadSeedData } from './seed.js';
 import { Modal, Toast } from './ui/notify.js';
 import { AuditManager, AuditEntities, AuditActions, setActorResolver } from './audit.js';
@@ -693,8 +693,25 @@ async function boot() {
     updateAccountBlock();
   });
 
-  // Start Supabase sync (offline-first). No-op if modules/config.js is absent
-  // or SYNC_ENABLED=false — the app keeps working on localStorage either way.
+  // ---- Layer 1: business email login (Supabase Auth) ----
+  // Gates DB access. Skipped entirely when Supabase isn't configured (local-only).
+  if (await isSupabaseConfigured()) {
+    const session = await supaAuth.getSession();
+    // Require email login only when there's no session AND no stored token. The
+    // stored-token check keeps returning devices usable offline (when supabase-js
+    // can't load from CDN to validate the session).
+    if (!session && !supaAuth.hasStoredSession()) {
+      AuthGate.showEmailLogin({ onSuccess: continueBoot });
+      return;
+    }
+  }
+  continueBoot();
+}
+
+// ---- Layer 2: start sync + gate on the in-app staff identity/role ----
+async function continueBoot() {
+  // Start Supabase sync (offline-first). No-op if Supabase isn't configured —
+  // the app keeps working on localStorage either way.
   const syncPromise = initSync({
     onRemoteChange: () => { if (appStarted) { renderRoute(); updateActiveKPI(); } },
     onStatus: updateSyncStatus,
@@ -706,7 +723,7 @@ async function boot() {
     await Promise.race([syncPromise, new Promise((r) => setTimeout(r, 4000))]);
   }
 
-  // Gate the app behind auth.
+  // Gate the app behind the in-app staff identity.
   if (SessionManager.needsBootstrap()) {
     // Still no manager after sync → force bootstrap/recovery before using the app,
     // even if a non-manager session exists on this device.
@@ -721,6 +738,9 @@ async function boot() {
 // Render the app proper once a session exists.
 function startApp() {
   appStarted = true;
+  // Ensure the auth overlay is fully dismissed regardless of which gate path ran.
+  const ar = document.getElementById('auth-root');
+  if (ar) { ar.hidden = true; ar.innerHTML = ''; }
   updateAccountBlock();
 
   // Default hash

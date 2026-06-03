@@ -7,6 +7,7 @@
 
 import { StaffManager } from '../staff.js';
 import { SessionManager } from '../session.js';
+import { supaAuth } from '../supabase.js';
 import { isValidPinFormat } from '../crypto.js';
 import { t } from '../i18n.js';
 
@@ -37,6 +38,14 @@ const shell = (inner) => `
 
 // ---- Entry point ----
 export const AuthGate = {
+  // Layer 1 — business email login (Supabase Auth). Gates DB access.
+  showEmailLogin({ onSuccess } = {}) {
+    const r = root();
+    if (r) r.hidden = false;
+    renderEmailLogin(onSuccess || (() => {}));
+  },
+
+  // Layer 2 — staff picker / first-run / recovery (in-app identity + role).
   show({ onAuthenticated } = {}) {
     _onAuth = onAuthenticated || (() => {});
     const r = root();
@@ -46,6 +55,48 @@ export const AuthGate = {
     else renderStaffPicker();
   },
 };
+
+// ---- Business email login (Supabase Auth) ----
+function renderEmailLogin(onSuccess) {
+  const r = root();
+  r.innerHTML = shell(`
+    <h2 class="auth-title">${t('auth_business_title')}</h2>
+    <p class="auth-lede">${t('auth_business_lede')}</p>
+    <div class="stack" style="gap:14px">
+      <div class="field">
+        <label class="field__label required" for="em-email">${t('auth_email')}</label>
+        <input id="em-email" class="input" type="email" autocomplete="username" inputmode="email" placeholder="bisnis@contoh.com" />
+      </div>
+      <div class="field">
+        <label class="field__label required" for="em-pass">${t('auth_password')}</label>
+        <input id="em-pass" class="input" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <p id="em-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
+      <button class="btn btn--block" id="em-go">${t('auth_signin')}</button>
+    </div>
+  `);
+
+  const err = r.querySelector('#em-err');
+  const email = r.querySelector('#em-email');
+  const pass = r.querySelector('#em-pass');
+  const btn = r.querySelector('#em-go');
+  setTimeout(() => email.focus(), 60);
+  pass.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+
+  btn.addEventListener('click', async () => {
+    err.textContent = '';
+    const e = email.value.trim();
+    const p = pass.value;
+    if (!e || !p) { err.textContent = t('auth_err_signin'); return; }
+    btn.disabled = true;
+    btn.textContent = t('auth_signing_in');
+    const res = await supaAuth.signIn(e, p);
+    btn.disabled = false;
+    btn.textContent = t('auth_signin');
+    if (res.ok) { onSuccess(); }
+    else { err.textContent = res.error || t('auth_err_signin'); pass.value = ''; pass.focus(); }
+  });
+}
 
 function done() {
   hide();

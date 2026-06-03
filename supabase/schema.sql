@@ -9,9 +9,10 @@
 -- Cara pakai: Supabase Dashboard -> SQL Editor -> paste semua -> Run.
 -- Re-runnable (aman dijalankan ulang).
 --
--- CATATAN KEAMANAN (MVP): policy di bawah memberi anon key akses penuh.
--- Ini "gerbang UX + akuntabilitas", BUKAN keamanan server sejati.
--- Untuk produksi multi-user sungguhan, ganti ke Supabase Auth + RLS per auth.uid().
+-- KEAMANAN: policy di bawah memberi akses ke role `authenticated` saja — yaitu
+-- klien yang sudah login lewat akun bisnis (Supabase Auth email/password).
+-- Anon key sendiri TIDAK bisa baca/tulis data, jadi aman ikut ter-deploy.
+-- (Jika DB lama Anda masih pakai policy anon, jalankan supabase/auth-rls.sql.)
 -- 'settings' (tema/bahasa) sengaja TIDAK disertakan — itu preferensi per-perangkat.
 -- =============================================================
 
@@ -38,12 +39,13 @@ begin
       t || '_updated_at_idx', t
     );
 
-    -- 3) RLS aktif + policy permisif untuk anon (MVP)
+    -- 3) RLS aktif + policy untuk pengguna terautentикasi (akun bisnis)
     execute format('alter table public.%I enable row level security;', t);
     execute format('drop policy if exists %I on public.%I;', t || '_anon_all', t);
+    execute format('drop policy if exists %I on public.%I;', t || '_auth_all', t);
     execute format(
-      'create policy %I on public.%I for all to anon using (true) with check (true);',
-      t || '_anon_all', t
+      'create policy %I on public.%I for all to authenticated using (true) with check (true);',
+      t || '_auth_all', t
     );
 
     -- 4) Realtime: tambahkan tabel ke publication (abaikan jika sudah ada)

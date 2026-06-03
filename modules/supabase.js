@@ -202,37 +202,18 @@ function nowISO() { return new Date().toISOString(); }
  * @returns {Promise<SyncEngine|null>}
  */
 export async function initSync({ onRemoteChange, onStatus } = {}) {
-  let cfg;
+  if (!(await isSupabaseConfigured())) {
+    onStatus?.('disabled');
+    return null;
+  }
+  let client;
   try {
-    cfg = await import('./config.js');
-  } catch (_) {
-    console.info('[Sync] modules/config.js not found — running local-only.');
-    onStatus?.('disabled');
-    return null;
-  }
-  if (!cfg.SYNC_ENABLED) {
-    console.info('[Sync] SYNC_ENABLED=false — running local-only.');
-    onStatus?.('disabled');
-    return null;
-  }
-  if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes('YOUR-PROJECT')) {
-    console.warn('[Sync] Supabase URL/key not configured in modules/config.js — running local-only.');
-    onStatus?.('disabled');
-    return null;
-  }
-
-  let createClient;
-  try {
-    ({ createClient } = await import('https://esm.sh/@supabase/supabase-js@2'));
+    client = await getSupabase();
   } catch (e) {
-    console.warn('[Sync] failed to load supabase-js from CDN — running local-only.', e);
+    console.warn('[Sync] failed to init Supabase client — running local-only.', e);
     onStatus?.('offline');
     return null;
   }
-
-  const client = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-    auth: { persistSession: false },
-  });
 
   const engine = new SyncEngine(client, { onRemoteChange, onStatus });
   try {
@@ -243,3 +224,80 @@ export async function initSync({ onRemoteChange, onStatus } = {}) {
   }
   return engine;
 }
+
+// =============================================================
+// Shared Supabase client + business-account Auth (hybrid model)
+//   Layer 1: one Supabase Auth account (email/password) gates DB access via RLS
+//            (policies target the `authenticated` role, not `anon`).
+//   Layer 2: the in-app staff picker + roles handles accountability & gating.
+// The anon key is now only an entry point — it cannot read/write data without a
+// valid email/password session — so it is safe to ship in the static deployment.
+// =============================================================
+
+let _client = null;
+let _cfgPromise;
+
+function loadConfig() {
+  if (!_cfgPromise) {
+    _cfgPromise = import('./config.js').catch(() => null);
+  }
+  return _cfgPromise;
+}
+
+export async function isSupabaseConfigured() {
+  const cfg = await loadConfig();
+  if (!cfg) { console.info('[Supabase] modules/config.js not found — local-only.'); return false; }
+  if (cfg.SYNC_ENABLED === false) { console.info('[Supabase] SYNC_ENABLED=false — local-only.'); return false; }
+  if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes('YOUR-PROJECT')) {
+    console.warn('[Supabase] URL/key not configured in modules/config.js — local-only.');
+    return false;
+  }
+  return true;
+}
+
+// Lazily create ONE shared client (auth + sync share it). persistSession keeps the
+// business login across reloads (and offline) so email is typed once per device.
+export async function getSupabase() {
+  if (_client) return _client;
+  const cfg = await loadConfig();
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  _client = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'chill_rental_auth' },
+  });
+  return _client;
+}
+
+const AUTH_STORAGE_KEY = 'chill_rental_auth';
+
+export const supaAuth = {
+  // Synchronous check for a previously-stored session token. Lets a returning
+  // device proceed offline even if supabase-js (CDN) can't load to validate it.
+  hasStoredSession() {
+    try { return !!localStorage.getItem(AUTH_STORAGE_KEY); } catch (_) { return false; }
+  },
+
+  // Cached session (no network if a token is stored) — null when signed out.
+  async getSession() {
+    try {
+      const c = await getSupabase();
+      const { data } = await c.auth.getSession();
+      return data.session || null;
+    } catch (e) { console.warn('[Auth] getSession failed', e); return null; }
+  },
+
+  // Returns { ok, error? }
+  async signIn(email, password) {
+    try {
+      const c = await getSupabase();
+      const { error } = await c.auth.signInWithPassword({ email, password });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || 'network error' };
+    }
+  },
+
+  async signOut() {
+    try { const c = await getSupabase(); await c.auth.signOut(); } catch (_) {}
+  },
+};

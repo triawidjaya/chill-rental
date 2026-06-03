@@ -27,8 +27,9 @@ npm-debug.log*
 # Local backups exported by the app
 chill-rental-backup-*.json
 
-# Supabase credentials (copy config.example.js -> config.js and fill in)
-modules/config.js
+# Supabase config (modules/config.js) is intentionally COMMITTED:
+# with authenticated-only RLS the anon key is just a public entry point and must
+# ship to the static deployment. Real access requires the business email/password.
 
 # Local-only test harness (kept on disk, not shared on GitHub)
 smoke-test.html
