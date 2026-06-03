@@ -7,7 +7,7 @@ import { RentalManager, renderRentalBadge } from '../modules/rentals.js';
 import { MotorManager } from '../modules/motors.js';
 import { OwnerManager } from '../modules/owners.js';
 import { AuditManager, AuditEntities } from '../modules/audit.js';
-import { formatIDR, formatDate, formatDateTime, escapeHTML, toCSV, downloadFile } from '../modules/utils.js';
+import { formatIDR, formatDate, formatDateTime, escapeHTML, toCSV, downloadFile, bindSearchInput } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
 // ----- Filter state (per session, reset on page load) -----
@@ -501,7 +501,6 @@ export function setupAuditPage(rerender) {
     });
   } else {
     // Trail tab
-    const debounceApply = (() => { let t; return (fn) => { clearTimeout(t); t = setTimeout(fn, 200); }; })();
     ['#t-from', '#t-to', '#t-entity', '#t-actor'].forEach(s => {
       content.querySelector(s)?.addEventListener('change', () => {
         trailFilters.from = content.querySelector('#t-from').value;
@@ -511,8 +510,9 @@ export function setupAuditPage(rerender) {
         rerender();
       });
     });
-    content.querySelector('#t-search')?.addEventListener('input', (e) => {
-      debounceApply(() => { trailFilters.search = e.target.value.trim(); rerender(); });
+    bindSearchInput(content.querySelector('#t-search'), (value) => {
+      trailFilters.search = value.trim();
+      rerender();
     });
 
     // Export trail

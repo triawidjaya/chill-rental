@@ -4,7 +4,7 @@
 
 import { MotorManager } from '../modules/motors.js';
 import { RentalManager } from '../modules/rentals.js';
-import { formatIDR, escapeHTML } from '../modules/utils.js';
+import { formatIDR, escapeHTML, bindSearchInput } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
 let currentCat = 'all';
@@ -166,12 +166,8 @@ export function setupMotorsPage(rerender) {
     currentSearch = '';
     rerender();
   });
-  const s = content.querySelector('#motor-search');
-  if (s) {
-    let t;
-    s.addEventListener('input', e => {
-      clearTimeout(t);
-      t = setTimeout(() => { currentSearch = e.target.value; rerender(); }, 200);
-    });
-  }
+  bindSearchInput(content.querySelector('#motor-search'), (value) => {
+    currentSearch = value;
+    rerender();
+  });
 }

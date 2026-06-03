@@ -3,7 +3,7 @@
 // =============================================================
 
 import { StaffManager, StaffRoles } from '../modules/staff.js';
-import { escapeHTML, formatDate } from '../modules/utils.js';
+import { escapeHTML, formatDate, bindSearchInput } from '../modules/utils.js';
 import { Modal, Toast } from '../modules/ui/notify.js';
 import { t } from '../modules/i18n.js';
 import { SessionManager } from '../modules/session.js';
@@ -102,17 +102,10 @@ export function setupStaffPage(rerender) {
     });
   });
 
-  const search = content.querySelector('#staff-search');
-  if (search) {
-    let t;
-    search.addEventListener('input', (e) => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        currentSearch = e.target.value;
-        rerender();
-      }, 200);
-    });
-  }
+  bindSearchInput(content.querySelector('#staff-search'), (value) => {
+    currentSearch = value;
+    rerender();
+  });
 }
 
 // ---------- Form modal (open from app.js handleAction) ----------

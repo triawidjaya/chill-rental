@@ -127,6 +127,38 @@ export const attachNumericInput = (el, { placeholder = '0' } = {}) => {
   return getRaw;
 };
 
+/**
+ * Wire a live-search <input> so typing filters results without losing the cursor.
+ *
+ * These pages re-render the whole #content on each change, which destroys and
+ * recreates the input — so the browser drops focus after every keystroke. This
+ * helper debounces the change, then re-focuses the freshly-rendered input (found
+ * again by its id) and restores the caret position.
+ *
+ * @param {HTMLInputElement} inputEl  the current search input (must have an id)
+ * @param {(value:string)=>void} onValue  update page state + trigger the rerender
+ * @param {{delay?:number}} [opts]
+ */
+export const bindSearchInput = (inputEl, onValue, { delay = 200 } = {}) => {
+  if (!inputEl) return;
+  const id = inputEl.id;
+  let timer;
+  inputEl.addEventListener('input', (e) => {
+    const value = e.target.value;
+    const caret = e.target.selectionStart;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      onValue(value); // page sets its state and re-renders #content (new input node)
+      const next = id && document.getElementById(id);
+      if (next) {
+        next.focus();
+        const pos = caret == null ? next.value.length : caret;
+        try { next.setSelectionRange(pos, pos); } catch (_) { /* type may not support it */ }
+      }
+    }, delay);
+  });
+};
+
 export const uid = (prefix = 'id') => {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 };

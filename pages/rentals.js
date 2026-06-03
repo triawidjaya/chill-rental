@@ -3,7 +3,7 @@
 // =============================================================
 
 import { RentalManager, renderRentalBadge } from '../modules/rentals.js';
-import { formatIDR, formatDate, escapeHTML, toCSV, downloadFile } from '../modules/utils.js';
+import { formatIDR, formatDate, escapeHTML, toCSV, downloadFile, bindSearchInput } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
 let currentFilter = 'all'; // all | active | completed
@@ -187,17 +187,10 @@ export function setupRentalsPage(rerender) {
     rerender();
   });
 
-  const search = content.querySelector('#rental-search');
-  if (search) {
-    let t;
-    search.addEventListener('input', (e) => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        currentSearch = e.target.value;
-        rerender();
-      }, 200);
-    });
-  }
+  bindSearchInput(content.querySelector('#rental-search'), (value) => {
+    currentSearch = value;
+    rerender();
+  });
 
   content.querySelector('[data-action="export-rentals"]')?.addEventListener('click', () => {
     const rentals = RentalManager.list();
