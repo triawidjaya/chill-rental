@@ -87,7 +87,16 @@ function setActiveNav(route) {
 }
 
 function renderRoute() {
-  const route = getRoute();
+  let route = getRoute();
+
+  // Role gate: if the current role can't access this route (e.g. direct URL
+  // access to #reports as Staff), redirect to the dashboard.
+  if (!SessionManager.canAccessRoute(route)) {
+    const cur = (location.hash || '').replace(/^#/, '').split('?')[0];
+    if (cur && cur !== DEFAULT_ROUTE) { location.hash = `#${DEFAULT_ROUTE}`; return; }
+    route = DEFAULT_ROUTE;
+  }
+
   const def = ROUTES[route];
 
   // Update topbar context label
@@ -386,6 +395,10 @@ function handleImportBackup() {
 const ACTION_PERMISSION = {
   'new-staff':     'staff.manage',
   'edit-staff':    'staff.manage',
+  'new-motor':     'motor.edit',
+  'edit-motor':    'motor.edit',
+  'new-owner':     'owner.edit',
+  'edit-owner':    'owner.edit',
   'reset-data':    'data.reset',
   'export-backup': 'data.backup',
   'import-backup': 'data.backup',

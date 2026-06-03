@@ -30,8 +30,14 @@ const ACTION_MIN_RANK = {
   'motor.edit':     2,
   'owner.edit':     2,
   'reports.view':   2,
+  // Page access (hide menu + block direct route) — Admin and up
+  'page.owners':    2,
+  'page.reports':   2,
+  'page.audit':     2,
+  'page.settings':  2,
   // Manager only
   'staff.manage':   3,
+  'page.staff':     3,
   'data.reset':     3,
   'data.backup':    3,
 };
@@ -130,6 +136,12 @@ export const SessionManager = {
   can(action, role = this.current()?.role) {
     const need = ACTION_MIN_RANK[action] || 1;
     return this.rankOf(role) >= need;
+  },
+
+  // Can the current role open a given route? Routes without a `page.<route>`
+  // entry are open to everyone (rank 1).
+  canAccessRoute(route, role = this.current()?.role) {
+    return this.can(`page.${route}`, role);
   },
 
   // True when no one can administer the system — i.e. there is no ACTIVE manager.

@@ -6,6 +6,7 @@ import { MotorManager } from '../modules/motors.js';
 import { RentalManager } from '../modules/rentals.js';
 import { formatIDR, escapeHTML, bindSearchInput } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
+import { SessionManager } from '../modules/session.js';
 
 let currentCat = 'all';
 let currentStatus = 'all';
@@ -35,7 +36,7 @@ export function renderMotors() {
         <h1 class="page__title">${t('nav_motors')}</h1>
         <p class="page__lede">${t('page_motors_lede', { total: all.length, rented: MotorManager.rented().length, available: MotorManager.available().length, surfrack: surfrackCount })}</p>
       </div>
-      <button class="btn" data-action="new-motor">
+      <button class="btn" data-action="new-motor" data-requires="motor.edit">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         ${t('modal_add_motor')}
       </button>
@@ -99,8 +100,9 @@ export function renderMotors() {
             : m.status === 'available'
             ? 'border-left:4px solid var(--success,#22c55e);background:rgba(34,197,94,0.04)'
             : '';
+          const canEditMotor = SessionManager.can('motor.edit');
           return `
-          <div class="card span-4" style="cursor:pointer;${accentStyle}" data-action="edit-motor" data-id="${m.id}">
+          <div class="card span-4" style="${canEditMotor ? 'cursor:pointer;' : ''}${accentStyle}" ${canEditMotor ? `data-action="edit-motor" data-id="${m.id}"` : ''}>
             <div class="row row--between" style="margin-bottom:12px">
               <div>
                 <div style="font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-0.02em">
