@@ -6,6 +6,8 @@ import { StaffManager, StaffRoles } from '../modules/staff.js';
 import { escapeHTML, formatDate } from '../modules/utils.js';
 import { Modal, Toast } from '../modules/ui/notify.js';
 import { t } from '../modules/i18n.js';
+import { SessionManager } from '../modules/session.js';
+import { isValidPinFormat } from '../modules/crypto.js';
 
 let currentFilter = 'all'; // all | active | inactive
 let currentSearch = '';
@@ -41,7 +43,7 @@ export function renderStaff() {
         <h1 class="page__title">${t('nav_staff')}</h1>
         <p class="page__lede">${t('staff_lede', { total, active: activeCount, inactive: inactiveCount })}</p>
       </div>
-      <button class="btn" data-action="new-staff">
+      <button class="btn" data-action="new-staff" data-requires="staff.manage">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         ${t('btn_add_staff')}
       </button>
@@ -144,6 +146,20 @@ export function openStaffForm(staffId = null) {
         <label class="field__label" for="s-notes">${t('form_staff_notes')}</label>
         <textarea id="s-notes" class="textarea" placeholder="${t('form_staff_notes_placeholder')}">${escapeHTML(s?.notes || '')}</textarea>
       </div>
+      ${s ? `
+      <div class="field" style="border-top:1px solid var(--border-subtle);padding-top:14px">
+        <label class="field__label">${t('form_staff_pin')}</label>
+        <div class="row" style="gap:8px;align-items:center;justify-content:space-between">
+          <span class="badge ${SessionManager.hasPin(s) ? 'badge--success' : 'badge--warning'}" style="font-size:11px">
+            ${SessionManager.hasPin(s) ? t('staff_pin_set') : t('staff_pin_none')}
+          </span>
+          <button type="button" class="btn btn--ghost btn--sm" id="btn-set-pin">
+            ${SessionManager.hasPin(s) ? t('btn_change_pin') : t('btn_set_pin')}
+          </button>
+        </div>
+        <span class="field__hint">${t('form_staff_pin_hint')}</span>
+      </div>
+      ` : ''}
     </div>
   `;
 
@@ -175,6 +191,8 @@ export function openStaffForm(staffId = null) {
   });
 
   if (s) {
+    document.getElementById('btn-set-pin')?.addEventListener('click', () => openPinDialog(s));
+
     document.getElementById('btn-del-staff').addEventListener('click', async () => {
       const ok = await Modal.confirm({
         title: t('confirm_staff_delete_title'),
@@ -190,4 +208,55 @@ export function openStaffForm(staffId = null) {
       }
     });
   }
+}
+
+// ---------- Set / change PIN dialog ----------
+export function openPinDialog(staff) {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <div class="stack" style="gap:14px">
+      <p style="color:var(--text-secondary);margin:0">${t('pin_dialog_lede', { name: escapeHTML(staff.name) })}</p>
+      <div class="field">
+        <label class="field__label required" for="pin-1">${t('pin_new')}</label>
+        <input id="pin-1" class="input" type="password" inputmode="numeric" autocomplete="off"
+               maxlength="6" placeholder="••••" />
+      </div>
+      <div class="field">
+        <label class="field__label required" for="pin-2">${t('pin_confirm')}</label>
+        <input id="pin-2" class="input" type="password" inputmode="numeric" autocomplete="off"
+               maxlength="6" placeholder="••••" />
+      </div>
+      <p id="pin-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
+    </div>
+  `;
+
+  const footer = document.createElement('div');
+  footer.innerHTML = `
+    <button class="btn btn--ghost" data-close>${t('btn_cancel')}</button>
+    <button class="btn" id="btn-save-pin">${t('btn_save')}</button>
+  `;
+
+  Modal.open({ title: t('pin_dialog_title'), body, footer });
+
+  const err = body.querySelector('#pin-err');
+  // Digits only as the user types.
+  body.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, ''); });
+  });
+
+  document.getElementById('btn-save-pin').addEventListener('click', async () => {
+    const p1 = body.querySelector('#pin-1').value;
+    const p2 = body.querySelector('#pin-2').value;
+    err.textContent = '';
+    if (!isValidPinFormat(p1)) { err.textContent = t('pin_err_format'); return; }
+    if (p1 !== p2)            { err.textContent = t('pin_err_mismatch'); return; }
+    try {
+      await SessionManager.setPin(staff.id, p1);
+      Modal.close();
+      Toast.success(t('toast_pin_saved'));
+      window.dispatchEvent(new CustomEvent('route:refresh'));
+    } catch (e) {
+      err.textContent = e.message;
+    }
+  });
 }

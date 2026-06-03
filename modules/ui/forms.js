@@ -10,6 +10,7 @@ import { StaffManager } from '../staff.js';
 import { RentalManager, renderRentalBadge, getRentalGrandTotal, getOwnerPayout } from '../rentals.js';
 import { formatIDR, daysBetween, calcRentalDays, toISODateTime, escapeHTML, formatDate, attachNumericInput } from '../utils.js';
 import { t } from '../i18n.js';
+import { SessionManager } from '../session.js';
 import { showReceiptModal } from './receipt-modal.js';
 import {
   invoiceNo,
@@ -688,6 +689,7 @@ export function openRentalDetail(rentalId) {
       } catch (e) { Toast.error(e.message); }
     });
     document.getElementById('btn-cancel-rental').addEventListener('click', async () => {
+      if (!SessionManager.can('rental.cancel')) { Toast.error(t('auth_no_access')); return; }
       try {
         // Guard check first — if it throws, show the message without a confirm dialog
         // Run a dry-run by manually checking elapsed days
@@ -827,6 +829,7 @@ export function openRentalDetail(rentalId) {
 
     if (btnSettle) {
       btnSettle.addEventListener('click', async () => {
+        if (!SessionManager.can('owner.settle')) { Toast.error(t('auth_no_access')); return; }
         const ok = await Modal.confirm({
           title: t('confirm_handover_title'),
           message: t('confirm_handover_msg', { amount: formatIDR(r.payToOwner), owner: r.ownerName || 'owner' }),
@@ -880,6 +883,7 @@ export function openRentalDetail(rentalId) {
     const btnAdminCorrect = document.getElementById('btn-admin-correct');
     if (btnAdminCorrect) {
       btnAdminCorrect.addEventListener('click', () => {
+        if (!SessionManager.can('rental.correct')) { Toast.error(t('auth_no_access')); return; }
         Modal.close();
         setTimeout(() => openAdminCorrectForm(r.id, () => openRentalDetail(rentalId)), 100);
       });
@@ -889,6 +893,7 @@ export function openRentalDetail(rentalId) {
     const btnUnmarkSettle = document.getElementById('btn-unmark-settle');
     if (btnUnmarkSettle) {
       btnUnmarkSettle.addEventListener('click', async () => {
+        if (!SessionManager.can('owner.settle')) { Toast.error(t('auth_no_access')); return; }
         const ok = await Modal.confirm({
           title: t('confirm_cancel_handover_title'),
           message: t('confirm_cancel_handover_msg', { owner: r.ownerName || 'owner' }),

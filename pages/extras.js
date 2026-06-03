@@ -81,7 +81,7 @@ export function renderSettings() {
             <div class="card__sub">${t('page_backup_sub')}</div>
           </div>
         </div>
-        <button class="btn btn--soft" data-action="export-backup">
+        <button class="btn btn--soft" data-action="export-backup" data-requires="data.backup">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           ${t('page_settings_export')}
         </button>
@@ -95,7 +95,7 @@ export function renderSettings() {
           </div>
         </div>
         <input type="file" id="import-file" accept=".json" hidden />
-        <button class="btn btn--ghost" data-action="import-backup">
+        <button class="btn btn--ghost" data-action="import-backup" data-requires="data.backup">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           ${t('page_select_json')}
         </button>
@@ -109,7 +109,7 @@ export function renderSettings() {
           </div>
         </div>
         <div class="row">
-          <button class="btn btn--ghost" data-action="reset-data" style="color:var(--danger);border-color:var(--danger)">
+          <button class="btn btn--ghost" data-action="reset-data" data-requires="data.reset" style="color:var(--danger);border-color:var(--danger)">
             ${t('page_settings_reset')}
           </button>
         </div>

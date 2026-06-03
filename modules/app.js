@@ -9,7 +9,10 @@ import { storage } from './storage.js';
 import { initSync } from './supabase.js';
 import { loadSeedData } from './seed.js';
 import { Modal, Toast } from './ui/notify.js';
-import { AuditManager, AuditEntities, AuditActions } from './audit.js';
+import { AuditManager, AuditEntities, AuditActions, setActorResolver } from './audit.js';
+import { SessionManager } from './session.js';
+import { StaffManager } from './staff.js';
+import { AuthGate } from './ui/login.js';
 import { t, renderI18n, setLang, getLang } from './i18n.js';
 import {
   openRentalForm,
@@ -24,7 +27,7 @@ import { renderMotors, setupMotorsPage } from '../pages/motors.js';
 import { renderOwners, setupOwnersPage } from '../pages/owners.js';
 import { renderReports } from '../pages/reports.js';
 import { renderAudit, setupAuditPage } from '../pages/audit.js';
-import { renderStaff, setupStaffPage, openStaffForm } from '../pages/staff.js';
+import { renderStaff, setupStaffPage, openStaffForm, openPinDialog } from '../pages/staff.js';
 import { renderDamages, renderSettings } from '../pages/extras.js';
 
 import { RentalManager, RentalStatus } from './rentals.js';
@@ -63,6 +66,8 @@ const $sidebar   = document.getElementById('sidebar');
 const $scrim     = document.getElementById('scrim');
 const $btnMenu   = document.getElementById('btn-menu');
 const $btnTheme  = document.getElementById('btn-theme');
+const $btnLogout = document.getElementById('btn-logout');
+const $userChip  = document.getElementById('user-chip');
 const $btnSeed   = document.getElementById('btn-seed');
 const $btnFab    = document.getElementById('btn-new-rental');
 const $btnQuickRental = document.getElementById('btn-quick-rental');
@@ -97,6 +102,9 @@ function renderRoute() {
 
   // Update active nav
   setActiveNav(route);
+
+  // Hide role-gated controls in the freshly rendered content
+  applyPermissions();
 
   // Update active rentals KPI
   updateActiveKPI();
@@ -133,6 +141,35 @@ function updateSyncStatus(status) {
   el.textContent = s.icon ? `${s.icon} ${s.text}` : '';
   el.dataset.syncStatus = status;
   el.title = s.text;
+}
+
+// ---------- Auth (Fase B.2) ----------
+let appStarted = false;
+
+// Hide [data-requires="<action>"] elements the current role may not use.
+function applyPermissions() {
+  document.querySelectorAll('[data-requires]').forEach((el) => {
+    el.classList.toggle('is-forbidden', !SessionManager.can(el.dataset.requires));
+  });
+}
+
+// Reflect the logged-in user in the topbar chip.
+function updateUserChip() {
+  const u = SessionManager.current();
+  if (!$userChip) return;
+  if (u) {
+    const av = document.getElementById('user-avatar');
+    const nm = document.getElementById('user-name');
+    const rl = document.getElementById('user-role');
+    if (av) av.textContent = (u.name || '?').trim().charAt(0).toUpperCase() || '?';
+    if (nm) nm.textContent = u.name || '';
+    if (rl) rl.textContent = t(`role_${u.role}`);
+    $userChip.hidden = false;
+    if ($btnLogout) $btnLogout.hidden = false;
+  } else {
+    $userChip.hidden = true;
+    if ($btnLogout) $btnLogout.hidden = true;
+  }
 }
 
 // ---------- Sidebar (mobile drawer) ----------
@@ -180,6 +217,7 @@ function toggleTheme() {
 
 // ---------- Seed / Reset ----------
 async function handleSeed() {
+  if (!SessionManager.can('data.seed')) { Toast.error(t('auth_no_access')); return; }
   const confirmed = await Modal.confirm({
     title: 'Muat Data Demo?',
     message: 'Ini akan mengisi 14 owner, 28 motor, dan 10 rental contoh. Data lama akan ditimpa.',
@@ -277,8 +315,22 @@ function handleImportBackup() {
   input.click();
 }
 
+// Actions that require elevated roles (Fase B.2). Others are open to all.
+const ACTION_PERMISSION = {
+  'new-staff':     'staff.manage',
+  'edit-staff':    'staff.manage',
+  'reset-data':    'data.reset',
+  'export-backup': 'data.backup',
+  'import-backup': 'data.backup',
+};
+
 // ---------- Delegated action handler ----------
 function handleAction(action, el) {
+  const need = ACTION_PERMISSION[action];
+  if (need && !SessionManager.can(need)) {
+    Toast.error(t('auth_no_access'));
+    return;
+  }
   switch (action) {
     case 'new-rental':
       openRentalForm();
@@ -356,6 +408,28 @@ function bindEvents() {
   });
   $btnTheme?.addEventListener('click', toggleTheme);
   $btnSeed?.addEventListener('click', handleSeed);
+
+  // Logout (Fase B.2)
+  $btnLogout?.addEventListener('click', async () => {
+    const ok = await Modal.confirm({
+      title: t('auth_logout_confirm_title'),
+      message: t('auth_logout_confirm_msg'),
+      confirmText: t('auth_logout'),
+      cancelText: t('btn_cancel'),
+    });
+    if (!ok) return;
+    SessionManager.logout();
+    appStarted = false;
+    updateUserChip();
+    AuthGate.show({ onAuthenticated: startApp });
+  });
+
+  // Click the user chip to set/change your OWN PIN (no staff-management access needed)
+  $userChip?.addEventListener('click', () => {
+    const u = SessionManager.current();
+    const me = u && StaffManager.get(u.staffId);
+    if (me) openPinDialog(me);
+  });
   $btnFab?.addEventListener('click', () => openRentalForm());
   $btnQuickRental?.addEventListener('click', () => openRentalForm());
 
@@ -543,7 +617,7 @@ function reconcileMotorStatus() {
 }
 
 // ---------- Boot ----------
-function boot() {
+async function boot() {
   // Migrate first (safe — non-destructive)
   migrate();
 
@@ -555,25 +629,52 @@ function boot() {
   // Wire events
   bindEvents();
 
-  // Default hash
-  if (!location.hash) location.hash = '#dashboard';
+  // Audit actor = logged-in user (Fase B.2). Falls back to 'system' pre-login.
+  setActorResolver(() => SessionManager.current() || { id: 'system', name: 'system', role: 'system' });
 
   // Listen for language changes
   window.addEventListener('lang:change', () => {
     renderRoute();
     renderI18n();
+    applyPermissions();
+    updateUserChip();
   });
-
-  // Initial render
-  renderRoute();
-  renderI18n();
 
   // Start Supabase sync (offline-first). No-op if modules/config.js is absent
   // or SYNC_ENABLED=false — the app keeps working on localStorage either way.
-  initSync({
-    onRemoteChange: () => { renderRoute(); updateActiveKPI(); },
+  const syncPromise = initSync({
+    onRemoteChange: () => { if (appStarted) { renderRoute(); updateActiveKPI(); } },
     onStatus: updateSyncStatus,
-  }).catch((e) => console.warn('[Sync] init error', e));
+  }).then((e) => { syncEngine = e; }).catch((e) => console.warn('[Sync] init error', e));
+
+  // On a fresh device the staff list may only exist on the server, so when local
+  // is empty we briefly wait for the initial pull before choosing the first-run
+  // wizard vs. the login screen. Returning/offline devices proceed immediately.
+  if (SessionManager.needsBootstrap() && !SessionManager.current()) {
+    await Promise.race([syncPromise, new Promise((r) => setTimeout(r, 4000))]);
+  }
+
+  // Gate the app behind auth.
+  if (SessionManager.isAuthenticated()) startApp();
+  else AuthGate.show({ onAuthenticated: startApp });
+}
+
+// Render the app proper once a session exists.
+function startApp() {
+  appStarted = true;
+  updateUserChip();
+
+  // Default hash
+  if (!location.hash) location.hash = '#dashboard';
+
+  renderRoute();
+  renderI18n();
+
+  // Nudge passwordless users to set a PIN.
+  if (sessionStorage.getItem('pin_nudge')) {
+    sessionStorage.removeItem('pin_nudge');
+    setTimeout(() => Toast.show(t('auth_pin_nudge'), '', 6000), 800);
+  }
 
   // First-run hint: if no data at all, suggest seed
   const hasAnyData =
@@ -587,5 +688,7 @@ function boot() {
     }, 600);
   }
 }
+
+let syncEngine = null;
 
 document.addEventListener('DOMContentLoaded', boot);

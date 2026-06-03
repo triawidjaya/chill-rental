@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles/base.css" />
   <link rel="stylesheet" href="styles/components.css" />
   <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="stylesheet" href="styles/auth.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -44,6 +45,17 @@
         </button>
         <button class="icon-btn" id="btn-theme" data-i18n-aria="topbar_theme_aria">
           <svg id="ico-theme" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <!-- Fase B.2: current user + logout -->
+        <span class="user-chip" id="user-chip" hidden>
+          <span class="user-chip__avatar" id="user-avatar">?</span>
+          <span class="user-chip__meta">
+            <span class="user-chip__name" id="user-name"></span>
+            <span class="user-chip__role" id="user-role"></span>
+          </span>
+        </span>
+        <button class="icon-btn" id="btn-logout" hidden data-i18n-aria="auth_logout" title="Keluar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
     </header>
@@ -89,7 +101,7 @@
         </a>
       </nav>
       <div class="sidebar__footer">
-        <button class="btn btn--ghost btn--block" id="btn-seed" data-i18n="page_settings_load_demo">Muat Data Demo</button>
+        <button class="btn btn--ghost btn--block" id="btn-seed" data-requires="data.seed" data-i18n="page_settings_load_demo">Muat Data Demo</button>
         <p class="muted-xs">v1.0 · Modular Build</p>
       </div>
     </aside>
@@ -127,6 +139,9 @@
     <div id="modal-root"></div>
     <div id="toast-root" class="toast-root" aria-live="polite"></div>
   </div>
+
+  <!-- Auth gate mount (Fase B.2) — full-screen login overlay -->
+  <div id="auth-root" hidden></div>
 
   <!-- Modules (load order matters) -->
   <script type="module" src="modules/app.js"></script>
