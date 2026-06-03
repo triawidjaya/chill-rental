@@ -9,6 +9,7 @@ import { StaffManager } from '../staff.js';
 import { SessionManager } from '../session.js';
 import { supaAuth } from '../supabase.js';
 import { isValidPinFormat } from '../crypto.js';
+import { Toast } from './notify.js';
 import { t } from '../i18n.js';
 
 let _root = null;
@@ -45,6 +46,13 @@ export const AuthGate = {
     renderEmailLogin(onSuccess || (() => {}));
   },
 
+  // Password recovery — shown when the app opens from a recovery email link.
+  showResetPassword({ onDone } = {}) {
+    const r = root();
+    if (r) r.hidden = false;
+    renderResetPassword(onDone || (() => {}));
+  },
+
   // Layer 2 — staff picker / first-run / recovery (in-app identity + role).
   show({ onAuthenticated } = {}) {
     _onAuth = onAuthenticated || (() => {});
@@ -73,6 +81,7 @@ function renderEmailLogin(onSuccess) {
       </div>
       <p id="em-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
       <button class="btn btn--block" id="em-go">${t('auth_signin')}</button>
+      <button class="auth-link" id="em-forgot">${t('auth_forgot')}</button>
     </div>
   `);
 
@@ -82,6 +91,7 @@ function renderEmailLogin(onSuccess) {
   const btn = r.querySelector('#em-go');
   setTimeout(() => email.focus(), 60);
   pass.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+  r.querySelector('#em-forgot').addEventListener('click', () => renderForgotPassword(onSuccess, email.value.trim()));
 
   btn.addEventListener('click', async () => {
     err.textContent = '';
@@ -101,6 +111,90 @@ function renderEmailLogin(onSuccess) {
 function done() {
   hide();
   _onAuth();
+}
+
+// ---- Forgot password: send a recovery email ----
+function renderForgotPassword(onSuccess, prefillEmail = '') {
+  const r = root();
+  r.innerHTML = shell(`
+    <button class="auth-back" id="fp-back">← ${t('auth_back_to_login')}</button>
+    <h2 class="auth-title">${t('auth_forgot_title')}</h2>
+    <p class="auth-lede">${t('auth_forgot_lede')}</p>
+    <div class="stack" style="gap:14px">
+      <div class="field">
+        <label class="field__label required" for="fp-email">${t('auth_email')}</label>
+        <input id="fp-email" class="input" type="email" inputmode="email" autocomplete="username"
+               value="${escapeText(prefillEmail)}" placeholder="bisnis@contoh.com" />
+      </div>
+      <p id="fp-msg" class="field__hint" style="min-height:1em"></p>
+      <button class="btn btn--block" id="fp-go">${t('auth_send_reset')}</button>
+    </div>
+  `);
+
+  const email = r.querySelector('#fp-email');
+  const msg = r.querySelector('#fp-msg');
+  const btn = r.querySelector('#fp-go');
+  setTimeout(() => email.focus(), 60);
+  email.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+  r.querySelector('#fp-back').addEventListener('click', () => renderEmailLogin(onSuccess));
+
+  btn.addEventListener('click', async () => {
+    const e = email.value.trim();
+    msg.style.color = 'var(--danger)';
+    if (!e) { msg.textContent = t('auth_err_email_required'); return; }
+    btn.disabled = true; btn.textContent = t('auth_sending');
+    const res = await supaAuth.requestPasswordReset(e);
+    btn.disabled = false; btn.textContent = t('auth_send_reset');
+    if (res.ok) {
+      msg.style.color = 'var(--text-secondary)';
+      msg.textContent = t('auth_reset_sent');
+    } else {
+      msg.textContent = res.error || t('auth_err_generic');
+    }
+  });
+}
+
+// ---- Reset password: set a new one (opened from the recovery email link) ----
+function renderResetPassword(onDone) {
+  const r = root();
+  r.innerHTML = shell(`
+    <h2 class="auth-title">${t('auth_reset_title')}</h2>
+    <p class="auth-lede">${t('auth_reset_lede')}</p>
+    <div class="stack" style="gap:14px">
+      <div class="field">
+        <label class="field__label required" for="rp-1">${t('auth_new_password')}</label>
+        <input id="rp-1" class="input" type="password" autocomplete="new-password" placeholder="••••••••" />
+      </div>
+      <div class="field">
+        <label class="field__label required" for="rp-2">${t('auth_confirm_password')}</label>
+        <input id="rp-2" class="input" type="password" autocomplete="new-password" placeholder="••••••••" />
+      </div>
+      <p id="rp-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
+      <button class="btn btn--block" id="rp-go">${t('auth_save_password')}</button>
+    </div>
+  `);
+
+  const p1 = r.querySelector('#rp-1');
+  const p2 = r.querySelector('#rp-2');
+  const err = r.querySelector('#rp-err');
+  const btn = r.querySelector('#rp-go');
+  setTimeout(() => p1.focus(), 60);
+  p2.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+
+  btn.addEventListener('click', async () => {
+    err.textContent = '';
+    if ((p1.value || '').length < 6) { err.textContent = t('auth_err_password_short'); return; }
+    if (p1.value !== p2.value) { err.textContent = t('auth_err_password_mismatch'); return; }
+    btn.disabled = true; btn.textContent = t('auth_signing_in');
+    const res = await supaAuth.updatePassword(p1.value);
+    btn.disabled = false; btn.textContent = t('auth_save_password');
+    if (res.ok) {
+      Toast.success(t('auth_password_updated'));
+      onDone();
+    } else {
+      err.textContent = res.error || t('auth_err_generic');
+    }
+  });
 }
 
 // ---- First-run: create the first Manager ----

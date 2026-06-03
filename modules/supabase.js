@@ -300,4 +300,41 @@ export const supaAuth = {
   async signOut() {
     try { const c = await getSupabase(); await c.auth.signOut(); } catch (_) {}
   },
+
+  // Send a password-recovery email. The link returns to this app URL, where
+  // supabase-js (detectSessionInUrl) establishes a temporary recovery session
+  // and fires PASSWORD_RECOVERY. Returns { ok, error? }.
+  async requestPasswordReset(email) {
+    try {
+      const c = await getSupabase();
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { error } = await c.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || 'network error' };
+    }
+  },
+
+  // Set a new password for the currently-recovering (or signed-in) user.
+  async updatePassword(newPassword) {
+    try {
+      const c = await getSupabase();
+      const { error } = await c.auth.updateUser({ password: newPassword });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || 'network error' };
+    }
+  },
+
+  // Fire callback when supabase-js detects a recovery link (PASSWORD_RECOVERY).
+  async onPasswordRecovery(callback) {
+    try {
+      const c = await getSupabase();
+      c.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') callback();
+      });
+    } catch (_) {}
+  },
 };

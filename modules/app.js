@@ -696,7 +696,16 @@ async function boot() {
   // ---- Layer 1: business email login (Supabase Auth) ----
   // Gates DB access. Skipped entirely when Supabase isn't configured (local-only).
   if (await isSupabaseConfigured()) {
-    const session = await supaAuth.getSession();
+    // Detect a password-recovery link BEFORE supabase-js cleans the URL hash.
+    const recoveryInUrl = /type=recovery/.test(location.hash || '');
+
+    const session = await supaAuth.getSession(); // creates client, processes URL hash
+
+    if (recoveryInUrl) {
+      // Opened from a recovery email → let the user set a new password first.
+      AuthGate.showResetPassword({ onDone: continueBoot });
+      return;
+    }
     // Require email login only when there's no session AND no stored token. The
     // stored-token check keeps returning devices usable offline (when supabase-js
     // can't load from CDN to validate the session).
