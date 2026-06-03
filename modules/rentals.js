@@ -5,7 +5,7 @@
 // =============================================================
 
 import { state } from './state.js';
-import { uid, daysBetween, calcRentalDays } from './utils.js';
+import { uid, daysBetween, calcRentalDays, formatDate } from './utils.js';
 import { MotorManager, MotorStatus } from './motors.js';
 import { t } from './i18n.js';
 // OwnerManager is no longer imported after R3 (PTO moved to the motor)
@@ -135,8 +135,8 @@ export const RentalManager = {
     notes = '',
   }) {
     const motor = MotorManager.get(motorId);
-    if (!motor) throw new Error('Motor tidak ditemukan');
-    if (motor.status === MotorStatus.RENTED) throw new Error('Motor sedang disewa');
+    if (!motor) throw new Error(t('err_motor_not_found'));
+    if (motor.status === MotorStatus.RENTED) throw new Error(t('err_motor_rented'));
 
     const ppd = Number(pricePerDay) || motor.pricePerDay || 70000;
     // PTO per day (rate). Source priority (R3):
@@ -218,8 +218,8 @@ export const RentalManager = {
     cutoffHour = 11,
   }) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (rental.status !== RentalStatus.ACTIVE) throw new Error('Rental tidak aktif (sudah returned atau cancelled)');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (rental.status !== RentalStatus.ACTIVE) throw new Error(t('err_rental_not_active'));
 
     // Validate the actualFinishDate range
     const finish = actualFinishDate || new Date().toISOString();
@@ -227,8 +227,8 @@ export const RentalManager = {
     const startMs  = new Date(rental.startDate).getTime();
     const nowMs    = Date.now();
     const twoHours = 2 * 60 * 60 * 1000;
-    if (finishMs < startMs) throw new Error('Tanggal check-out tidak boleh sebelum tanggal check-in');
-    if (finishMs > nowMs + twoHours) throw new Error('Tanggal check-out tidak boleh lebih dari 2 jam ke depan');
+    if (finishMs < startMs) throw new Error(t('err_checkout_before_checkin'));
+    if (finishMs > nowMs + twoHours) throw new Error(t('err_checkout_too_future'));
 
     // Apply the 11:00 AM cut-off rule
     const days = calcRentalDays(rental.startDate, finish, cutoffHour);
@@ -288,9 +288,9 @@ export const RentalManager = {
    */
   editRental(rentalId, patch) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
+    if (!rental) throw new Error(t('err_rental_not_found'));
     if (rental.status !== RentalStatus.ACTIVE) {
-      throw new Error('Hanya rental aktif yang bisa diedit. Rental sudah returned/cancelled — immutable.');
+      throw new Error(t('err_only_active_editable'));
     }
 
     // Whitelist of editable fields (everything else is ignored for safety)
@@ -309,9 +309,9 @@ export const RentalManager = {
     // Handle motor swap
     if (patch.motorId && patch.motorId !== rental.motorId) {
       const newMotor = MotorManager.get(patch.motorId);
-      if (!newMotor) throw new Error('Motor pengganti tidak ditemukan');
+      if (!newMotor) throw new Error(t('err_replacement_motor_not_found'));
       if (newMotor.status === MotorStatus.RENTED) {
-        throw new Error(`Motor ${newMotor.plate} sedang disewa — pilih motor available`);
+        throw new Error(t('err_motor_rented_pick_available', { plate: newMotor.plate }));
       }
 
       // Release the old motor
@@ -347,9 +347,7 @@ export const RentalManager = {
     // Guard: block if the motor has already been used >0 days
     const daysSoFar = calcRentalDays(rental.startDate, new Date().toISOString()) - 1;
     if (daysSoFar > 0) {
-      throw new Error(
-        `Motor sudah digunakan ${daysSoFar} hari sejak ${new Date(rental.startDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} — gunakan Check-Out untuk mengakhiri sewa`
-      );
+      throw new Error(t('err_motor_used_days', { days: daysSoFar, date: formatDate(rental.startDate) }));
     }
 
     state.update('rentals', rentalId, { status: RentalStatus.CANCELLED });
@@ -370,12 +368,12 @@ export const RentalManager = {
    */
   markPaid(rentalId, { paymentMethod = '', amountReceived, adjustmentReason = '' } = {}) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
+    if (!rental) throw new Error(t('err_rental_not_found'));
     const isReturned = rental.status === RentalStatus.RETURNED || rental.status === RentalStatus.COMPLETED;
-    if (!isReturned) throw new Error('Rental belum returned — harus check-out dulu');
-    if (rental.paid) throw new Error('Rental sudah dibayar');
-    if (rental.passportHeld) throw new Error('Passport tamu masih di-hold — kembalikan passport dulu sebelum proses pembayaran');
-    if (rental.newDamage && !rental.damageResolved) throw new Error('Ada kerusakan yang belum diselesaikan — tandai Damage Selesai dulu sebelum tandai bayar');
+    if (!isReturned) throw new Error(t('err_rental_not_returned'));
+    if (rental.paid) throw new Error(t('err_rental_already_paid'));
+    if (rental.passportHeld) throw new Error(t('err_passport_still_held'));
+    if (rental.newDamage && !rental.damageResolved) throw new Error(t('err_damage_unresolved_before_pay'));
 
     const grandTotal = getRentalGrandTotal(rental);
     const received   = amountReceived != null ? Number(amountReceived) : grandTotal;
@@ -383,7 +381,7 @@ export const RentalManager = {
 
     // If the amount differs, a reason is required
     if (difference !== 0 && !(adjustmentReason || '').trim()) {
-      throw new Error('Jumlah diterima berbeda dari tagihan — wajib isi alasan penyesuaian');
+      throw new Error(t('err_amount_mismatch_reason'));
     }
 
     const now = new Date().toISOString();
@@ -412,9 +410,9 @@ export const RentalManager = {
    */
   markOwnerSettled(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.paid) throw new Error('Belum bisa settle owner — tamu belum bayar');
-    if (rental.ownerSettled) throw new Error('Sudah ditandai diserahkan ke owner');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.paid) throw new Error(t('err_settle_before_pay'));
+    if (rental.ownerSettled) throw new Error(t('err_already_settled'));
 
     const now = new Date().toISOString();
     state.update('rentals', rentalId, {
@@ -438,12 +436,12 @@ export const RentalManager = {
    */
   holdPassport(rentalId, { passportNo }) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (rental.status !== RentalStatus.ACTIVE) throw new Error('Hanya rental aktif yang bisa di-hold passport');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (rental.status !== RentalStatus.ACTIVE) throw new Error(t('err_hold_only_active'));
 
     const cleanPassport = (passportNo || '').trim();
-    if (!cleanPassport) throw new Error('No. passport wajib diisi');
-    if (cleanPassport.length < 4) throw new Error('No. passport terlalu pendek');
+    if (!cleanPassport) throw new Error(t('err_passport_required'));
+    if (cleanPassport.length < 4) throw new Error(t('err_passport_too_short'));
 
     const now = new Date().toISOString();
     state.update('rentals', rentalId, {
@@ -466,8 +464,8 @@ export const RentalManager = {
    */
   releasePassport(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.passportHeld) throw new Error('Passport belum di-hold');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.passportHeld) throw new Error(t('err_passport_not_held'));
 
     state.update('rentals', rentalId, {
       passportHeld: false,
@@ -489,10 +487,10 @@ export const RentalManager = {
    */
   undoCheckOut(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
+    if (!rental) throw new Error(t('err_rental_not_found'));
     const isReturned = rental.status === RentalStatus.RETURNED || rental.status === RentalStatus.COMPLETED;
-    if (!isReturned) throw new Error('Rental belum di-checkout — tidak perlu undo');
-    if (rental.paid) throw new Error('Tidak bisa undo check-out — rental sudah dibayar. Batalkan pembayaran dulu');
+    if (!isReturned) throw new Error(t('err_not_checked_out_no_undo'));
+    if (rental.paid) throw new Error(t('err_undo_checkout_paid'));
 
     // Remove the damage record created during this checkout (if any)
     if (rental.newDamage) {
@@ -544,12 +542,12 @@ export const RentalManager = {
    */
   unmarkPaid(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.paid) throw new Error('Rental belum ditandai dibayar');
-    if (rental.ownerSettled) throw new Error('Tidak bisa batal bayar — owner sudah di-settle');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.paid) throw new Error(t('err_rental_not_marked_paid'));
+    if (rental.ownerSettled) throw new Error(t('err_cannot_unpay_settled'));
     const paidDate = (rental.paidAt || '').slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
-    if (paidDate !== today) throw new Error(`Tidak bisa dibatalkan — hanya bisa di hari yang sama (${paidDate})`);
+    if (paidDate !== today) throw new Error(t('err_undo_same_day_only', { date: paidDate }));
 
     state.update('rentals', rentalId, {
       paid: false,
@@ -571,9 +569,9 @@ export const RentalManager = {
    */
   flagDamage(rentalId, { note = '' }) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (rental.status !== RentalStatus.ACTIVE) throw new Error('Hanya bisa flag damage saat rental masih aktif');
-    if (!note.trim()) throw new Error('Catatan dugaan kerusakan wajib diisi');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (rental.status !== RentalStatus.ACTIVE) throw new Error(t('err_flag_damage_only_active'));
+    if (!note.trim()) throw new Error(t('err_damage_note_required'));
 
     state.update('rentals', rentalId, {
       suspectedDamage: true,
@@ -593,8 +591,8 @@ export const RentalManager = {
    */
   clearDamageFlag(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.suspectedDamage) throw new Error('Tidak ada flag damage');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.suspectedDamage) throw new Error(t('err_no_damage_flag'));
 
     state.update('rentals', rentalId, {
       suspectedDamage: false,
@@ -615,10 +613,10 @@ export const RentalManager = {
    */
   unmarkDamageResolved(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.newDamage) throw new Error('Rental ini tidak ada kerusakan');
-    if (!rental.damageResolved) throw new Error('Damage belum ditandai selesai');
-    if (rental.paid) throw new Error('Tidak bisa buka kembali damage — rental sudah dibayar');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.newDamage) throw new Error(t('err_no_damage'));
+    if (!rental.damageResolved) throw new Error(t('err_damage_not_resolved'));
+    if (rental.paid) throw new Error(t('err_reopen_damage_paid'));
 
     state.update('rentals', rentalId, { damageResolved: false });
     AuditManager.log({
@@ -635,11 +633,11 @@ export const RentalManager = {
    */
   unmarkOwnerSettled(rentalId) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.ownerSettled) throw new Error('Owner belum ditandai settled');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.ownerSettled) throw new Error(t('err_owner_not_settled'));
     const settledDate = (rental.ownerSettledAt || '').slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
-    if (settledDate !== today) throw new Error(`Tidak bisa dibatalkan — hanya bisa di hari yang sama (${settledDate})`);
+    if (settledDate !== today) throw new Error(t('err_undo_same_day_only', { date: settledDate }));
 
     state.update('rentals', rentalId, {
       ownerSettled: false,
@@ -661,9 +659,9 @@ export const RentalManager = {
    */
   editDamage(rentalId, { damageDescription, damageCharge }) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.newDamage) throw new Error('Rental ini tidak ada kerusakan');
-    if (rental.ownerSettled) throw new Error('Tidak bisa ubah damage — owner sudah di-settle');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.newDamage) throw new Error(t('err_no_damage'));
+    if (rental.ownerSettled) throw new Error(t('err_edit_damage_settled'));
 
     const oldCharge = rental.damageCharge || 0;
     const newCharge = Number(damageCharge) || 0;
@@ -695,9 +693,9 @@ export const RentalManager = {
    */
   markDamageResolved(rentalId, { note = '' } = {}) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
-    if (!rental.newDamage) throw new Error('Rental ini tidak ada kerusakan');
-    if (rental.damageResolved) throw new Error('Damage sudah ditandai selesai');
+    if (!rental) throw new Error(t('err_rental_not_found'));
+    if (!rental.newDamage) throw new Error(t('err_no_damage'));
+    if (rental.damageResolved) throw new Error(t('err_damage_already_resolved'));
 
     state.update('rentals', rentalId, { damageResolved: true });
     AuditManager.log({
@@ -723,20 +721,18 @@ export const RentalManager = {
    */
   adminCorrect(rentalId, { damageCharge, paymentMethod, notes } = {}) {
     const rental = this.get(rentalId);
-    if (!rental) throw new Error('Rental tidak ditemukan');
+    if (!rental) throw new Error(t('err_rental_not_found'));
 
     const isFullyDone = (
       (rental.status === RentalStatus.RETURNED || rental.status === RentalStatus.COMPLETED) &&
       rental.paid && rental.ownerSettled && rental.damageResolved
     );
-    if (!isFullyDone) throw new Error('Koreksi admin hanya untuk rental yang sudah selesai sepenuhnya');
+    if (!isFullyDone) throw new Error(t('err_admin_correct_only_done'));
 
     // Guard: corrections only allowed on the same day as ownerSettledAt
     const settledDate = (rental.ownerSettledAt || '').slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
-    if (settledDate !== today) throw new Error(
-      `Koreksi hanya bisa dilakukan di hari yang sama (${settledDate}) — data historis tidak bisa diubah`
-    );
+    if (settledDate !== today) throw new Error(t('err_admin_correct_same_day', { date: settledDate }));
 
     const patch = {};
     const changes = [];
@@ -769,7 +765,7 @@ export const RentalManager = {
       changes.push('catatan diperbarui');
     }
 
-    if (Object.keys(patch).length === 0) throw new Error('Tidak ada perubahan yang dideteksi');
+    if (Object.keys(patch).length === 0) throw new Error(t('err_no_changes_detected'));
 
     state.update('rentals', rentalId, patch);
     AuditManager.log({

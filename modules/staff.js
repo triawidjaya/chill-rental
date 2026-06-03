@@ -6,6 +6,7 @@
 import { state } from './state.js';
 import { uid } from './utils.js';
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
+import { t } from './i18n.js';
 
 const staffLabel = (s) => s ? `${s.name}${s.role ? ' (' + s.role + ')' : ''}` : '(unknown)';
 
@@ -44,11 +45,11 @@ export const StaffManager = {
 
   create({ name, role = 'staff', active = true, notes = '' }) {
     const cleanName = (name || '').trim();
-    if (!cleanName) throw new Error('Nama staff wajib diisi');
+    if (!cleanName) throw new Error(t('err_staff_name_required'));
 
     // Unique name validation
     const existing = this.getByName(cleanName);
-    if (existing) throw new Error(`Staff dengan nama "${cleanName}" sudah ada`);
+    if (existing) throw new Error(t('err_staff_name_exists', { name: cleanName }));
 
     const staff = {
       id: uid('stf'),
@@ -72,13 +73,13 @@ export const StaffManager = {
 
   update(id, patch) {
     const before = this.get(id);
-    if (!before) throw new Error('Staff tidak ditemukan');
+    if (!before) throw new Error(t('err_staff_member_not_found'));
 
     // If the name changes, validate uniqueness (excluding its own name)
     if (patch.name && patch.name.trim() !== before.name) {
       const existing = this.getByName(patch.name);
       if (existing && existing.id !== id) {
-        throw new Error(`Staff dengan nama "${patch.name.trim()}" sudah ada`);
+        throw new Error(t('err_staff_name_exists', { name: patch.name.trim() }));
       }
       patch.name = patch.name.trim();
     }

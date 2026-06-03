@@ -79,7 +79,7 @@ function applyLogFilter(rentals) {
     if (logFilters.damage === 'no' && r.newDamage) return false;
     if (logFilters.staffGiver !== 'all' && (r.staffGivesKey || '').toUpperCase() !== logFilters.staffGiver) return false;
 
-    // Filter berdasarkan motor (category, cc, surfrack)
+    // Filter by motor (category, cc, surfrack)
     if (logFilters.category !== 'all' || logFilters.cc !== 'all' || logFilters.surfrack !== 'all') {
       const motor = MotorManager.get(r.motorId);
       if (logFilters.category !== 'all' && motor?.category !== logFilters.category) return false;

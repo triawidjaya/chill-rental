@@ -12,7 +12,7 @@ body {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  overscroll-behavior-y: none; /* Cegah pull-to-refresh di iOS saat scroll modal */
+  overscroll-behavior-y: none; /* Prevent iOS pull-to-refresh while scrolling the modal */
   font-family: var(--font-sans);
   font-size: var(--fs-base);
   line-height: var(--lh-normal);
@@ -57,7 +57,7 @@ input, select, textarea, button { font: inherit; color: inherit; }
 }
 .hidden { display: none !important; }
 
-/* Spacing utilities — pengganti inline gap/margin non-token */
+/* Spacing utilities — replacements for non-token inline gap/margin */
 .gap-xs  { gap: var(--sp-1); }   /* 4px  */
 .gap-sm  { gap: var(--sp-2); }   /* 8px  */
 .gap-md  { gap: var(--sp-3); }   /* 12px */
@@ -81,15 +81,15 @@ input, select, textarea, button { font: inherit; color: inherit; }
 }
 
 /* Scrollbar finesse */
-::-webkit-scrollbar { width: 6px; height: 6px; }   /* 10px → 6px, lebih ramping di mobile */
+::-webkit-scrollbar { width: 6px; height: 6px; }   /* 10px → 6px, slimmer on mobile */
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: var(--r-pill);
-  border: 1px solid var(--bg-app);  /* border lebih tipis sesuai scrollbar lebih kecil */
+  border: 1px solid var(--bg-app);  /* thinner border to match the smaller scrollbar */
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
-/* Di mobile, sembunyikan scrollbar sepenuhnya (swipe sudah cukup) */
+/* On mobile, hide the scrollbar entirely (swipe is enough) */
 @media (max-width: 480px) {
   ::-webkit-scrollbar { display: none; }
   * { scrollbar-width: none; }

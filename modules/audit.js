@@ -50,13 +50,13 @@ export const AuditManager = {
   },
 
   /**
-   * Log sebuah aksi.
+   * Log an action.
    * @param {Object} opts
    * @param {string} opts.entity   — entity type (motor, rental, ...)
    * @param {string} opts.entityId — id of the entity
-   * @param {string} opts.entityLabel — label untuk display
+   * @param {string} opts.entityLabel — label for display
    * @param {string} opts.action   — action constant
-   * @param {Object} [opts.changes] — diff { field, from, to } untuk update
+   * @param {Object} [opts.changes] — diff { field, from, to } for an update
    * @param {string} [opts.note]
    */
   log({ entity, entityId, entityLabel, action, changes, note }) {

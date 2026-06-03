@@ -31,11 +31,11 @@
         </div>
       </div>
       <div class="topbar__actions">
-        <button class="chip chip--success" id="kpi-active" data-i18n-title="topbar_new_rental_title"> <!-- title dari motor disewa di-set via JS -->
+        <button class="chip chip--success" id="kpi-active" data-i18n-title="topbar_new_rental_title"> <!-- title (rented-motor count) is set via JS -->
           <span class="chip__dot"></span>
           <span id="kpi-active-count">0</span> <span data-i18n="topbar_kpi_active">sedang disewa</span>
         </button>
-        <!-- R13: Quick action — Sewa Baru (replaces button in page headers) -->
+        <!-- R13: Quick action — New Rental (replaces button in page headers) -->
         <button class="btn btn--sm topbar__quick-rental" id="btn-quick-rental" data-i18n-title="topbar_new_rental_title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span class="topbar__quick-rental-label" data-i18n="topbar_quick_rental">Sewa Baru</span>
@@ -95,7 +95,7 @@
 
     <!-- Main content area, routed -->
     <main class="content" id="content" tabindex="-1">
-      <!-- Pages diisi oleh router.js -->
+      <!-- Pages are injected by router.js -->
     </main>
 
     <!-- Bottom tab bar (mobile only) -->

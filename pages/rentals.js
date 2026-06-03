@@ -91,7 +91,6 @@ export function renderRentals() {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
           </div>
            <p class="empty__title">${t('empty_rentals')}</p>
-            <p>Coba ubah filter atau buat rental baru</p>
         </div>
       </div>
     ` : `
@@ -175,7 +174,7 @@ function statusBadge(status, rental) {
 
 export function setupRentalsPage(rerender) {
   const content = document.getElementById('content');
-  // Klik chip aktif → toggle off (back to 'all')
+  // Click the active chip → toggle off (back to 'all')
   content.querySelectorAll('[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       currentFilter = (currentFilter === btn.dataset.filter) ? 'all' : btn.dataset.filter;

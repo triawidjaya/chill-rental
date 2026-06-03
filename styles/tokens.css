@@ -38,8 +38,8 @@
 
   /* ---- Semantic — Light (default) — warm palette + amber accent ----
      Tier-based bg: bg-app (creamy off-white) → bg-elev (white card) → bg-elev-2 (subtle recessed)
-     Text: warm dark (#1a1612 bukan pure black) untuk warm feel.
-     Accent: amber #e8a048 (sama dengan dark — konsistensi brand).
+     Text: warm dark (#1a1612, not pure black) for a warm feel.
+     Accent: amber #e8a048 (same as dark — brand consistency).
   */
   --bg-app: #f7f4ef;            /* warm cream — readable bg */
   --bg-elev: #ffffff;           /* card, sidebar, modal */
@@ -51,7 +51,7 @@
   --text-secondary: #5a544e;    /* warm muted */
   --text-tertiary: #8a8580;     /* warm light muted */
   --text-inverse: #ffffff;
-  --text-on-brand: #1a1209;     /* dark text di atas amber (high contrast) */
+  --text-on-brand: #1a1209;     /* dark text on amber (high contrast) */
 
   --border-subtle: rgba(26, 22, 18, .10);
   --border-strong: rgba(26, 22, 18, .18);
@@ -60,13 +60,13 @@
   --brand: #e8a048;
   --brand-hover: #d4863a;
   --brand-soft: rgba(232, 160, 72, .14);
-  --brand-soft-text: #b06820;   /* darker amber untuk text di soft badge (kontras di light bg) */
+  --brand-soft-text: #b06820;   /* darker amber for text in the soft badge (contrast on light bg) */
 
-  --success: #2e9c6b;           /* darker green untuk light mode (AA contrast) */
+  --success: #2e9c6b;           /* darker green for light mode (AA contrast) */
   --success-soft: rgba(46, 156, 107, .12);
-  --warning: #c9881f;           /* darker amber untuk warning badge */
+  --warning: #c9881f;           /* darker amber for the warning badge */
   --warning-soft: rgba(232, 160, 72, .14);
-  --danger: #c8443f;            /* darker red untuk light mode */
+  --danger: #c8443f;            /* darker red for light mode */
   --danger-soft: rgba(200, 68, 63, .10);
   --info: #4185d6;
   --info-soft: rgba(65, 133, 214, .10);
@@ -133,25 +133,25 @@
   --maxw-content: 1280px;
 }
 
-/* ===== Dark theme — palette refresh (referensi: warm dark + amber accent) =====
-   Tier-based backgrounds: bg-app (paling gelap) → bg-elev → bg-elev-2 (paling terang)
-   Text: warm off-white #f0ede8 (bukan pure white) untuk reading comfort.
-   Accent: amber #e8a048 (lebih hostel-vibe daripada teal).
+/* ===== Dark theme — palette refresh (reference: warm dark + amber accent) =====
+   Tier-based backgrounds: bg-app (darkest) → bg-elev → bg-elev-2 (lightest)
+   Text: warm off-white #f0ede8 (not pure white) for reading comfort.
+   Accent: amber #e8a048 (more hostel-vibe than teal).
 */
 [data-theme="dark"] {
   /* ---- Backgrounds (3 tier) ---- */
-  --bg-app: #0e0f11;            /* page bg (paling gelap) */
+  --bg-app: #0e0f11;            /* page bg (darkest) */
   --bg-elev: #16181c;           /* sidebar, card, modal */
   --bg-elev-2: #1e2128;         /* input bg, table header, elevated surface */
-  --bg-subtle: #1e2128;         /* alias untuk bg-subtle yang ada di code */
+  --bg-subtle: #1e2128;         /* alias for bg-subtle used in the code */
   --bg-tint: rgba(232, 160, 72, .08);
 
   /* ---- Text (warm tones) ---- */
   --text-primary: #f0ede8;      /* warm off-white */
   --text-secondary: #9a9690;    /* secondary muted */
   --text-tertiary: #5a5854;     /* tertiary very muted */
-  --text-inverse: #1a1209;      /* dark text (untuk button primary di atas accent) */
-  --text-on-brand: #1a1209;     /* dark text di atas amber button */
+  --text-inverse: #1a1209;      /* dark text (for the primary button on the accent) */
+  --text-on-brand: #1a1209;     /* dark text on the amber button */
 
   /* ---- Borders ---- */
   --border-subtle: rgba(255, 255, 255, .07);

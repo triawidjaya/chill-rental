@@ -68,7 +68,7 @@
   padding: var(--sp-5);
   box-shadow: var(--sh-sm);
 }
-/* Dark mode: kurangi shadow (depth diatur via tier bg) */
+/* Dark mode: reduce shadow (depth is conveyed via the tier bg) */
 [data-theme="dark"] .card { box-shadow: none; }
 .card--accent {
   background: linear-gradient(135deg, var(--brand-soft) 0%, var(--bg-elev) 70%);
@@ -151,15 +151,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 8px;        /* naik dari 3px → 4px untuk ketinggian minimal */
+  padding: 4px 8px;        /* raised from 3px → 4px for a minimum height */
   border-radius: 6px;
   font-size: var(--fs-xs);
   font-weight: 600;
   background: var(--bg-subtle);
   color: var(--text-secondary);
-  min-height: 24px;        /* minimum visual height, konsisten di semua ukuran layar */
+  min-height: 24px;        /* minimum visual height, consistent across all screen sizes */
   white-space: nowrap;
-  flex-shrink: 0;          /* badge tidak boleh menyusut di dalam flex container */
+  flex-shrink: 0;          /* badge must not shrink inside a flex container */
 }
 .badge--success { background: var(--success-soft); color: var(--success); }
 .badge--warning { background: var(--warning-soft); color: var(--warning); }
@@ -172,6 +172,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;   /* allow inputs to shrink inside grid/flex cells (prevents overflow on mobile) */
 }
 .field__label {
   font-size: var(--fs-sm);
@@ -196,8 +197,8 @@
               box-shadow var(--motion-fast) var(--ease-out);
 }
 /* Dark mode: inputs use elevated tier (bg-elev-2) so they stand out from card bg-elev.
-   PENTING: gunakan background-color (BUKAN shorthand 'background') supaya tidak
-   reset background-image (icon panah select) jadi tiling/repeat. */
+   IMPORTANT: use background-color (NOT the 'background' shorthand) so it does not
+   reset the background-image (the select arrow icon) into tiling/repeat. */
 [data-theme="dark"] .input,
 [data-theme="dark"] .select,
 [data-theme="dark"] .textarea {
@@ -211,6 +212,28 @@
 }
 .input::placeholder { color: var(--text-tertiary); }
 .textarea { min-height: 88px; resize: vertical; }
+
+/* iOS Safari quirk: date/time inputs have a large intrinsic min-content width
+   and ignore width:100% inside grid/flex → overflow (a "wider box").
+   min-width:0 + max-width:100% so they obey the container width. */
+.input[type="date"],
+.input[type="time"],
+.input[type="datetime-local"],
+.input[type="month"] {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Mobile: reset native appearance so iOS truly respects the container width.
+   (Mobile only — on desktop keep the native picker icon visible.) */
+@media (max-width: 600px) {
+  .input[type="date"],
+  .input[type="time"],
+  .input[type="datetime-local"],
+  .input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
 
 .select {
   appearance: none;
@@ -230,7 +253,7 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-3);
 }
-/* Mobile: collapse jadi 1 kolom — cegah horizontal overflow */
+/* Mobile: collapse to 1 column — prevent horizontal overflow */
 @media (max-width: 600px) {
   .field-group {
     grid-template-columns: 1fr;
@@ -240,8 +263,8 @@
 /* ===== TABLE / LIST ===== */
 .table-wrap {
   overflow-x: auto;
-  overflow-y: auto;                 /* R14: vertikal scroll untuk sticky header */
-  max-height: calc(100vh - 320px);  /* fit di viewport, dengan ruang untuk topbar + filter + summary */
+  overflow-y: auto;                 /* R14: vertical scroll for the sticky header */
+  max-height: calc(100vh - 320px);  /* fit in the viewport, with room for topbar + filter + summary */
   border-radius: var(--r-lg);
   border: 1px solid var(--border-subtle);
   background: var(--bg-elev);
@@ -251,7 +274,7 @@
 }
 .table {
   width: 100%;
-  border-collapse: separate;        /* R14: ganti dari 'collapse' supaya sticky border tidak hilang */
+  border-collapse: separate;        /* R14: changed from 'collapse' so the sticky border is not lost */
   border-spacing: 0;
   font-size: var(--fs-sm);
 }
@@ -270,7 +293,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  /* Tambah box-shadow tipis ke bawah supaya jelas pisahnya saat scroll */
+  /* Add a thin box-shadow below so the separation is clear when scrolling */
   box-shadow: 0 1px 0 0 var(--border-subtle);
 }
 .table td {
@@ -309,7 +332,7 @@
 .list-item__title {
   font-weight: 600;
   color: var(--text-primary);
-  min-width: 0;              /* izinkan shrink di dalam flex */
+  min-width: 0;              /* allow shrink inside flex */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -318,14 +341,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;         /* nama ellipsis, badge tetap di kanan */
+  flex-wrap: nowrap;         /* name ellipsis, badge stays on the right */
   min-width: 0;
 }
 .list-item__title-row .list-item__title {
-  flex: 1 1 0;               /* nama mengambil sisa ruang, bisa shrink */
+  flex: 1 1 0;               /* name takes the remaining space, can shrink */
 }
 .list-item__title-row .badge {
-  flex-shrink: 0;            /* badge tidak boleh mengecil */
+  flex-shrink: 0;            /* badge must not shrink */
 }
 .list-item__sub {
   font-size: var(--fs-sm);
@@ -355,18 +378,18 @@
   box-shadow: var(--sh-lg);
   width: 100%;
   max-width: 560px;
-  max-height: 90dvh;         /* dvh lebih akurat di mobile — memperhitungkan browser UI */
+  max-height: 90dvh;         /* dvh is more accurate on mobile — accounts for browser UI */
   display: flex;
   flex-direction: column;
   animation: slideUp var(--motion-base) var(--ease-out);
 }
 .modal--lg { max-width: 720px; }
 
-/* Di mobile, modal lebih rapat ke tepi dan aman dari notch */
+/* On mobile, the modal hugs the edges and stays clear of the notch */
 @media (max-width: 480px) {
   .modal-backdrop {
     padding: var(--sp-3);
-    align-items: flex-end;   /* modal muncul dari bawah di mobile — lebih natural */
+    align-items: flex-end;   /* modal slides up from the bottom on mobile — more natural */
   }
   .modal {
     max-height: calc(92dvh - env(safe-area-inset-bottom));
@@ -382,14 +405,14 @@
   justify-content: space-between;
   padding: var(--sp-5);
   border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;            /* header tidak boleh mengecil */
+  flex-shrink: 0;            /* header must not shrink */
 }
 .modal__title { font-size: var(--fs-lg); }
 .modal__body {
   padding: var(--sp-5);
   overflow-y: auto;
   flex: 1;
-  /* Scroll smooth di iOS */
+  /* Smooth scrolling on iOS */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
@@ -399,23 +422,23 @@
   justify-content: flex-end;
   flex-wrap: wrap;
   padding: var(--sp-4) var(--sp-5);
-  /* Safe area untuk iPhone home indicator */
+  /* Safe area for the iPhone home indicator */
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-subtle);
   border-radius: 0 0 var(--r-xl) var(--r-xl);
-  flex-shrink: 0;            /* footer tidak boleh mengecil */
+  flex-shrink: 0;            /* footer must not shrink */
 }
-/* Mobile: footer button full-width supaya tidak tercekik (3-4 button rental aktif) */
+/* Mobile: footer buttons full-width so they are not cramped (3-4 buttons on an active rental) */
 @media (max-width: 600px) {
   .modal__footer {
     flex-direction: column-reverse;
-    gap: var(--sp-2);
+    gap: var(--sp-3);   /* 8px → 12px: prevent stacked buttons from touching */
   }
   .modal__footer .btn { width: 100%; justify-content: center; }
 }
 
-/* ===== MODAL FOOTER SPLIT — destructive di kiri, primary di kanan ===== */
+/* ===== MODAL FOOTER SPLIT — destructive on the left, primary on the right ===== */
 .modal-footer-split {
   display: flex;
   justify-content: space-between;
@@ -424,11 +447,12 @@
   gap: var(--sp-2);
   flex-wrap: wrap;
 }
-/* Mobile: stack vertical, destructive di bawah, primary di atas (urutan visual penting) */
+/* Mobile: stack vertically, destructive at the bottom, primary on top (visual order matters) */
 @media (max-width: 600px) {
   .modal-footer-split {
     flex-direction: column-reverse;
     align-items: stretch;
+    gap: var(--sp-3);   /* consistent spacing when buttons stack vertically */
   }
   .modal-footer-split > .btn,
   .modal-footer-split > .modal-footer-actions {
@@ -436,13 +460,14 @@
   }
   .modal-footer-split > .modal-footer-actions {
     flex-direction: column-reverse;
+    gap: var(--sp-3);   /* spacing between buttons when stacked vertically */
   }
   .modal-footer-split > .modal-footer-actions > .btn {
     width: 100%;
   }
 }
 
-/* ===== MODAL FOOTER ACTIONS — tombol kanan footer, tidak overflow di mobile ===== */
+/* ===== MODAL FOOTER ACTIONS — right-side footer buttons, no overflow on mobile ===== */
 .modal-footer-actions {
   display: flex;
   gap: 8px;
@@ -454,6 +479,7 @@
   .modal-footer-actions {
     flex-direction: column;
     width: 100%;
+    gap: var(--sp-3);   /* match the spacing of other stacked footers */
   }
   .modal-footer-actions .btn {
     width: 100%;
@@ -461,13 +487,13 @@
   }
 }
 
-/* ===== GLOBAL TEXT OVERFLOW GUARD — cegah text melebihi container ===== */
+/* ===== GLOBAL TEXT OVERFLOW GUARD — prevent text from exceeding the container ===== */
 .modal__body * {
   max-width: 100%;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-/* Kecualikan elemen yang tidak boleh wrap */
+/* Exclude elements that must not wrap */
 .modal__body button,
 .modal__body input,
 .modal__body select,
@@ -476,15 +502,15 @@
   overflow-wrap: normal;
 }
 
-/* ===== DETAIL GRID — info rental 2-kolom, responsive ke 1 kolom di mobile ===== */
+/* ===== DETAIL GRID — rental info in 2 columns, responsive to 1 column on mobile ===== */
 .detail-grid {
   display: grid;
-  /* Auto-fit: 2 kolom jika muat (min 140px per kolom), else collapse jadi 1 */
+  /* Auto-fit: 2 columns if they fit (min 140px each), else collapse to 1 */
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--sp-3);
   font-size: var(--fs-sm);
 }
-/* Force single column at <600px supaya text tanggal panjang tidak wrap aneh */
+/* Force a single column below 600px so long date text does not wrap oddly */
 @media (max-width: 600px) {
   .detail-grid {
     grid-template-columns: 1fr;
@@ -495,7 +521,7 @@
   }
 }
 
-/* ===== ACTION ROW — label kiri + button kanan, safe di layar sempit ===== */
+/* ===== ACTION ROW — label left + button right, safe on narrow screens ===== */
 .action-row {
   display: flex;
   justify-content: space-between;
@@ -507,10 +533,10 @@
   min-width: 0;
 }
 .action-row__btn {
-  flex-shrink: 0;   /* Tombol tidak mengecil */
+  flex-shrink: 0;   /* Button does not shrink */
   white-space: nowrap;
 }
-/* Di layar sangat sempit, stack vertikal */
+/* On very narrow screens, stack vertically */
 @media (max-width: 360px) {
   .action-row {
     flex-direction: column;
@@ -594,7 +620,7 @@
   margin-bottom: var(--sp-4);
   max-width: 100%;
 }
-/* Stacked toolbar — filter groups dengan label di kiri (Motor page pattern) */
+/* Stacked toolbar — filter groups with the label on the left (Motor page pattern) */
 .toolbar--stacked {
   flex-direction: column;
   align-items: stretch;
@@ -623,7 +649,7 @@
   flex-shrink: 0;
 }
 .filter-reset[disabled] { opacity: 0.4; cursor: not-allowed; }
-/* Compact count pill inside chip — biar tidak crowded dengan label */
+/* Compact count pill inside the chip — so it is not crowded with the label */
 .filter-count {
   display: inline-block;
   margin-left: 6px;
@@ -651,7 +677,7 @@
 }
 .toolbar__search {
   flex: 1 1 120px;    /* flex-grow:1, flex-shrink:1, basis 120px */
-  min-width: 120px;   /* turun dari 160px — lebih aman di 360px */
+  min-width: 120px;   /* down from 160px — safer at 360px */
   max-width: 100%;
   position: relative;
 }
@@ -685,7 +711,7 @@
 
 /* ===== SEGMENTED CONTROL ===== */
 
-/* Variant: grid 3-kolom untuk filter banyak item (mis. rental filter) */
+/* Variant: 3-column grid for filters with many items (e.g. the rental filter) */
 .segmented--filter {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -701,7 +727,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 1;
-  padding: 8px 6px;   /* padding horizontal lebih kecil di grid mode */
+  padding: 8px 6px;   /* smaller horizontal padding in grid mode */
 }
 @media (min-width: 600px) {
   .segmented--filter {
@@ -709,7 +735,7 @@
     width: auto;
   }
   .segmented--filter .segmented__opt {
-    padding: 8px 14px;  /* kembali ke padding normal di desktop */
+    padding: 8px 14px;  /* back to normal padding on desktop */
   }
 }
 
@@ -719,16 +745,16 @@
   border-radius: var(--r-md);
   padding: 4px;
   gap: 4px;
-  flex-wrap: wrap;            /* wrap ke baris baru jika tidak muat (mobile) */
+  flex-wrap: wrap;            /* wrap to a new line if it does not fit (mobile) */
   max-width: 100%;
   flex-shrink: 1;
   min-width: 0;
 }
-/* Mobile: chips equal-width adaptif berdasarkan jumlah chip */
+/* Mobile: chips are equal-width, adaptive based on the chip count */
 @media (max-width: 700px) {
   .segmented { width: 100%; row-gap: 6px; }
   .segmented__opt {
-    flex: 1 1 calc(33.333% - 4px);   /* default: 3 per row (untuk 3 atau 6 chips) */
+    flex: 1 1 calc(33.333% - 4px);   /* default: 3 per row (for 3 or 6 chips) */
     min-width: 0;
     padding: 8px 4px !important;
     font-size: 11.5px !important;
@@ -741,11 +767,11 @@
   .segmented:has(.segmented__opt:nth-child(2):last-child) .segmented__opt {
     flex-basis: calc(50% - 4px);
   }
-  /* 4 chips → 2 per row × 2 rows (rapi) */
+  /* 4 chips → 2 per row × 2 rows (neat) */
   .segmented:has(.segmented__opt:nth-child(4):last-child) .segmented__opt {
     flex-basis: calc(50% - 4px);
   }
-  /* 5 chips → 3+2 layout (chip terakhir kebih lebar) */
+  /* 5 chips → 3+2 layout (the last chip is wider) */
   .segmented:has(.segmented__opt:nth-child(5):last-child) .segmented__opt {
     flex-basis: calc(33.333% - 4px);
   }
@@ -763,7 +789,7 @@
   min-height: 36px;
   white-space: nowrap;
   flex-shrink: 0;
-  /* Cegah teks overflow keluar container */
+  /* Prevent text from overflowing the container */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -796,7 +822,7 @@
   position: relative;
   padding: var(--sp-3) 0 0;
 }
-/* Garis horizontal grid */
+/* Horizontal grid line */
 .chart-grid__line {
   position: absolute;
   left: 0; right: 0;
@@ -806,7 +832,7 @@
   opacity: 0.6;
 }
 .chart-grid__line:last-child {
-  /* baseline lebih solid */
+  /* baseline is more solid */
   background: var(--border-strong);
   opacity: 1;
 }
@@ -814,12 +840,12 @@
 .chart-bars {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;     /* spasi merata sepanjang lebar card */
+  justify-content: space-between;     /* even spacing across the card width */
   gap: var(--sp-1);
   height: 200px;
   padding: 0;
   position: relative;
-  z-index: 1;                          /* di atas grid lines */
+  z-index: 1;                          /* above the grid lines */
 }
 .chart-bar {
   flex: 1;
@@ -833,7 +859,7 @@
 }
 .chart-bar__fill {
   width: 100%;
-  max-width: 28px;                     /* batasi bar supaya tidak terlalu lebar saat 14 hari */
+  max-width: 28px;                     /* cap the bar so it is not too wide at 14 days */
   min-height: 3px;
   background: var(--brand);
   border-radius: var(--r-sm) var(--r-sm) 0 0;
@@ -841,7 +867,7 @@
   position: relative;
   overflow: visible;
 }
-/* Bar dengan value 0 — dot indicator (timeline marker) */
+/* Bar with value 0 — dot indicator (timeline marker) */
 .chart-bar__fill[data-zero="true"] {
   background: transparent;
   min-height: 0;
@@ -857,7 +883,7 @@
   border-radius: 50%;
   background: var(--border-strong);
 }
-/* Label angka — float di ATAS bar */
+/* Number label — floats ABOVE the bar */
 .chart-bar__value {
   position: absolute;
   bottom: 100%;
@@ -884,7 +910,7 @@
   white-space: nowrap;
   margin-top: 6px;
 }
-/* Label "month switch" (first day of new month) lebih prominent */
+/* "month switch" label (first day of a new month) is more prominent */
 .chart-bar:has(.chart-bar__label:not(:empty)):nth-child(n) .chart-bar__label {
   /* Always visible */
 }

@@ -179,6 +179,49 @@ const strings = {
     err_not_found: 'Rental tidak ditemukan. Coba muat ulang halaman.',
     err_damage_desc_required: 'Masukkan deskripsi kerusakan',
 
+    // ----- Manager-layer errors (thrown by RentalManager/MotorManager/StaffManager) -----
+    err_motor_not_found: 'Motor tidak ditemukan',
+    err_motor_rented: 'Motor sedang disewa',
+    err_rental_not_active: 'Rental tidak aktif (sudah returned atau cancelled)',
+    err_checkout_before_checkin: 'Tanggal check-out tidak boleh sebelum tanggal check-in',
+    err_checkout_too_future: 'Tanggal check-out tidak boleh lebih dari 2 jam ke depan',
+    err_only_active_editable: 'Hanya rental aktif yang bisa diedit. Rental sudah returned/cancelled — immutable.',
+    err_replacement_motor_not_found: 'Motor pengganti tidak ditemukan',
+    err_motor_rented_pick_available: 'Motor ${plate} sedang disewa — pilih motor available',
+    err_motor_used_days: 'Motor sudah digunakan ${days} hari sejak ${date} — gunakan Check-Out untuk mengakhiri sewa',
+    err_rental_not_returned: 'Rental belum returned — harus check-out dulu',
+    err_rental_already_paid: 'Rental sudah dibayar',
+    err_passport_still_held: 'Passport tamu masih di-hold — kembalikan passport dulu sebelum proses pembayaran',
+    err_damage_unresolved_before_pay: 'Ada kerusakan yang belum diselesaikan — tandai Damage Selesai dulu sebelum tandai bayar',
+    err_amount_mismatch_reason: 'Jumlah diterima berbeda dari tagihan — wajib isi alasan penyesuaian',
+    err_settle_before_pay: 'Belum bisa settle owner — tamu belum bayar',
+    err_already_settled: 'Sudah ditandai diserahkan ke owner',
+    err_hold_only_active: 'Hanya rental aktif yang bisa di-hold passport',
+    err_passport_too_short: 'No. passport terlalu pendek',
+    err_passport_not_held: 'Passport belum di-hold',
+    err_not_checked_out_no_undo: 'Rental belum di-checkout — tidak perlu undo',
+    err_undo_checkout_paid: 'Tidak bisa undo check-out — rental sudah dibayar. Batalkan pembayaran dulu',
+    err_rental_not_marked_paid: 'Rental belum ditandai dibayar',
+    err_cannot_unpay_settled: 'Tidak bisa batal bayar — owner sudah di-settle',
+    err_undo_same_day_only: 'Tidak bisa dibatalkan — hanya bisa di hari yang sama (${date})',
+    err_flag_damage_only_active: 'Hanya bisa flag damage saat rental masih aktif',
+    err_damage_note_required: 'Catatan dugaan kerusakan wajib diisi',
+    err_no_damage_flag: 'Tidak ada flag damage',
+    err_no_damage: 'Rental ini tidak ada kerusakan',
+    err_damage_not_resolved: 'Damage belum ditandai selesai',
+    err_reopen_damage_paid: 'Tidak bisa buka kembali damage — rental sudah dibayar',
+    err_owner_not_settled: 'Owner belum ditandai settled',
+    err_edit_damage_settled: 'Tidak bisa ubah damage — owner sudah di-settle',
+    err_damage_already_resolved: 'Damage sudah ditandai selesai',
+    err_admin_correct_only_done: 'Koreksi admin hanya untuk rental yang sudah selesai sepenuhnya',
+    err_admin_correct_same_day: 'Koreksi hanya bisa dilakukan di hari yang sama (${date}) — data historis tidak bisa diubah',
+    err_no_changes_detected: 'Tidak ada perubahan yang dideteksi',
+    err_plate_required: 'Plat nomor wajib diisi',
+    err_plate_exists: 'Plat "${plate}" sudah terdaftar untuk motor: ${motor}',
+    err_staff_name_required: 'Nama staff wajib diisi',
+    err_staff_name_exists: 'Staff dengan nama "${name}" sudah ada',
+    err_staff_member_not_found: 'Staff tidak ditemukan',
+
     // =============================================
     // TOAST SUCCESS
     // =============================================
@@ -792,6 +835,49 @@ const strings = {
     err_not_found: 'Rental not found. Try refreshing the page.',
     err_damage_desc_required: 'Enter a damage description',
 
+    // ----- Manager-layer errors (thrown by RentalManager/MotorManager/StaffManager) -----
+    err_motor_not_found: 'Vehicle not found',
+    err_motor_rented: 'Vehicle is currently rented',
+    err_rental_not_active: 'Rental is not active (already returned or cancelled)',
+    err_checkout_before_checkin: 'Check-out date cannot be before the check-in date',
+    err_checkout_too_future: 'Check-out date cannot be more than 2 hours in the future',
+    err_only_active_editable: 'Only active rentals can be edited. This rental is already returned/cancelled — immutable.',
+    err_replacement_motor_not_found: 'Replacement vehicle not found',
+    err_motor_rented_pick_available: 'Vehicle ${plate} is currently rented — pick an available vehicle',
+    err_motor_used_days: 'The vehicle has been in use for ${days} day(s) since ${date} — use Check-Out to end the rental',
+    err_rental_not_returned: 'Rental is not returned yet — check out first',
+    err_rental_already_paid: 'Rental is already paid',
+    err_passport_still_held: 'The guest passport is still held — return the passport before processing payment',
+    err_damage_unresolved_before_pay: 'There is unresolved damage — mark Damage Resolved before marking as paid',
+    err_amount_mismatch_reason: 'The received amount differs from the bill — an adjustment reason is required',
+    err_settle_before_pay: 'Cannot settle the owner yet — the guest has not paid',
+    err_already_settled: 'Already marked as handed over to the owner',
+    err_hold_only_active: 'Only active rentals can have a passport held',
+    err_passport_too_short: 'Passport number is too short',
+    err_passport_not_held: 'No passport is being held',
+    err_not_checked_out_no_undo: 'Rental has not been checked out — nothing to undo',
+    err_undo_checkout_paid: 'Cannot undo check-out — the rental is already paid. Cancel the payment first',
+    err_rental_not_marked_paid: 'Rental is not marked as paid',
+    err_cannot_unpay_settled: 'Cannot cancel payment — the owner is already settled',
+    err_undo_same_day_only: 'Cannot be undone — only allowed on the same day (${date})',
+    err_flag_damage_only_active: 'Damage can only be flagged while the rental is active',
+    err_damage_note_required: 'A suspected-damage note is required',
+    err_no_damage_flag: 'There is no damage flag',
+    err_no_damage: 'This rental has no damage',
+    err_damage_not_resolved: 'Damage is not marked as resolved',
+    err_reopen_damage_paid: 'Cannot reopen damage — the rental is already paid',
+    err_owner_not_settled: 'The owner is not marked as settled',
+    err_edit_damage_settled: 'Cannot edit damage — the owner is already settled',
+    err_damage_already_resolved: 'Damage is already marked as resolved',
+    err_admin_correct_only_done: 'Admin correction is only for fully completed rentals',
+    err_admin_correct_same_day: 'Corrections can only be made on the same day (${date}) — historical data cannot be changed',
+    err_no_changes_detected: 'No changes detected',
+    err_plate_required: 'Plate number is required',
+    err_plate_exists: 'Plate "${plate}" is already registered to vehicle: ${motor}',
+    err_staff_name_required: 'Staff name is required',
+    err_staff_name_exists: 'A staff member named "${name}" already exists',
+    err_staff_member_not_found: 'Staff member not found',
+
     // Toast success
     toast_rental_created: 'Rental for ${name} saved',
     toast_checkout_done: '${name} checked out',
@@ -1236,9 +1322,9 @@ const strings = {
 // =============================================================
 
 /**
- * Ambil string berdasarkan key, support interpolasi ${param}
+ * Get a string by key, supports ${param} interpolation
  * @param {string} key 
- * @param {object} [params] - objek untuk interpolasi, mis. { name: 'John' }
+ * @param {object} [params] - object for interpolation, e.g. { name: 'John' }
  * @returns {string}
  */
 export function t(key, params = {}) {
@@ -1263,7 +1349,7 @@ export function getLang() {
 }
 
 /**
- * Set language + save preference + dispatch event untuk re-render
+ * Set language + save preference + dispatch event to trigger a re-render
  * @param {'id' | 'en'} lang
  */
 export function setLang(lang) {

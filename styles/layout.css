@@ -66,11 +66,11 @@
   font-weight: 500;
   margin-top: 1px;
 }
-/* MOBILE: hide brand title "Chill Rental" — page subtitle (sub) sudah cukup sebagai context */
+/* MOBILE: hide brand title "Chill Rental" — the page subtitle (sub) is enough context */
 @media (max-width: 700px) {
   .topbar__title h1 { display: none; }
   .topbar__sub {
-    font-size: var(--fs-sm);    /* bump sub jadi lebih prominent karena jadi judul utama */
+    font-size: var(--fs-sm);    /* bump the sub to be more prominent since it acts as the main title */
     font-weight: 700;
     color: var(--text-primary);
     margin-top: 0;
@@ -81,25 +81,25 @@
   align-items: center;
   gap: var(--sp-2);
 }
-/* R13: Quick action 'Rental Baru' di topbar */
+/* R13: Quick action 'New Rental' in the topbar */
 .topbar__quick-rental {
   background: var(--brand);
   color: var(--text-on-brand);
 }
 .topbar__quick-rental:hover { background: var(--brand-hover); }
-/* MOBILE: sembunyikan total tombol + Rental Baru — FAB di bottom tabbar sudah cover */
+/* MOBILE: hide the "+ New Rental" button — the FAB in the bottom tabbar already covers it */
 @media (max-width: 700px) {
   .topbar__quick-rental { display: none; }
-  /* "X aktif" chip jadi lebih compact di mobile */
+  /* "X active" chip becomes more compact on mobile */
   #kpi-active {
     font-size: var(--fs-xs);
     padding: 6px 10px;
-    min-height: 32px;        /* naik dari 28px → 32px, lebih mudah di-tap */
+    min-height: 32px;        /* raised from 28px → 32px, easier to tap */
   }
 }
-/* Saat sidebar collapsed (desktop), label tetap muncul karena topbar tidak ikut collapse */
+/* When the sidebar is collapsed (desktop), the label stays visible since the topbar does not collapse */
 .topbar__menu { display: inline-flex; }
-/* R12: hamburger sekarang juga muncul di desktop sebagai sidebar collapse toggle */
+/* R12: the hamburger now also appears on desktop as the sidebar collapse toggle */
 @media (min-width: 900px) {
   .topbar__menu { display: inline-flex; }
 }
@@ -250,7 +250,7 @@
 }
 .page__title {
   font-family: var(--font-display);
-  font-size: clamp(20px, 5vw, var(--fs-2xl)); /* shrink halus di 360px, full di 560px+ */
+  font-size: clamp(20px, 5vw, var(--fs-2xl)); /* shrinks smoothly at 360px, full size at 560px+ */
   font-weight: 800;
   letter-spacing: -0.02em;
   min-width: 0;
@@ -314,8 +314,8 @@
   justify-content: center;
   gap: 4px;
   min-width: 56px;
-  min-height: 56px;        /* sudah memenuhi Apple HIG 44px */
-  padding: 8px 8px;        /* naik dari 6px → 8px, lebih nyaman di-tap */
+  min-height: 56px;        /* meets the Apple HIG 44px minimum */
+  padding: 8px 8px;        /* raised from 6px → 8px, more comfortable to tap */
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 600;

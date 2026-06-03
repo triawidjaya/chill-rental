@@ -6,6 +6,7 @@
 import { state } from './state.js';
 import { uid } from './utils.js';
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
+import { t } from './i18n.js';
 
 const motorLabel = (m) => m ? `${m.plate} — ${m.description}` : '(unknown)';
 
@@ -46,17 +47,17 @@ export const MotorManager = {
     hasSurfrack, phoneHolder = false, gps = false, payToOwnerPerDay,
   }) {
     const cleanPlate = (plate || '').trim().toUpperCase();
-    if (!cleanPlate) throw new Error('Plat nomor wajib diisi');
+    if (!cleanPlate) throw new Error(t('err_plate_required'));
 
     // Unique validation
     const existing = this.getByPlateExcluding(cleanPlate);
     if (existing) {
-      throw new Error(`Plat "${cleanPlate}" sudah terdaftar untuk motor: ${existing.description || existing.id}`);
+      throw new Error(t('err_plate_exists', { plate: cleanPlate, motor: existing.description || existing.id }));
     }
 
     // Surfrack must be explicitly chosen (boolean true/false, not undefined/null)
     if (hasSurfrack !== true && hasSurfrack !== false) {
-      throw new Error('Status Surfrack wajib dipilih');
+      throw new Error(t('err_surfrack_required'));
     }
 
     const ppd = Number(pricePerDay) || 70000;
@@ -92,16 +93,16 @@ export const MotorManager = {
 
   update(id, patch) {
     const before = this.get(id);
-    if (!before) throw new Error('Motor tidak ditemukan');
+    if (!before) throw new Error(t('err_motor_not_found'));
 
     // If the plate changes, validate uniqueness
     if (patch.plate !== undefined) {
       const newPlate = (patch.plate || '').trim().toUpperCase();
-      if (!newPlate) throw new Error('Plat nomor wajib diisi');
+      if (!newPlate) throw new Error(t('err_plate_required'));
       if (newPlate !== (before.plate || '').toUpperCase()) {
         const existing = this.getByPlateExcluding(newPlate, id);
         if (existing) {
-          throw new Error(`Plat "${newPlate}" sudah terdaftar untuk motor: ${existing.description || existing.id}`);
+          throw new Error(t('err_plate_exists', { plate: newPlate, motor: existing.description || existing.id }));
         }
       }
       patch.plate = newPlate;
@@ -109,7 +110,7 @@ export const MotorManager = {
 
     // Reject if hasSurfrack is set to undefined/null
     if ('hasSurfrack' in patch && patch.hasSurfrack !== true && patch.hasSurfrack !== false) {
-      throw new Error('Status Surfrack wajib dipilih');
+      throw new Error(t('err_surfrack_required'));
     }
 
     state.update('motors', id, patch);

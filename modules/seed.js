@@ -262,7 +262,7 @@ export function loadSeedData() {
   state.set('rentals', rentalsWithMeta);
   state.set('damages', damages);
 
-  // Reconcile motor.status berdasarkan rentals aktif (sync source of truth)
+  // Reconcile motor.status based on active rentals (sync source of truth)
   const activeRentalsByMotor = new Map();
   rentalsWithMeta.forEach(r => {
     if (r.status === 'active' && r.motorId) activeRentalsByMotor.set(r.motorId, r.id);
