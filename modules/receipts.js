@@ -9,7 +9,7 @@
 // =============================================================
 
 import { formatIDR, formatDate, formatDateTime } from './utils.js';
-import { getRentalGrandTotal } from './rentals.js';
+import { getRentalGrandTotal, getOwnerPayout } from './rentals.js';
 
 // ---- Layout primitives -------------------------------------------------
 const LABEL_W = 8;                       // label column width before ": "
@@ -99,12 +99,36 @@ const damageLines = (r) => {
   ];
 };
 
-// Owner-facing damage note (Indonesian), omitted entirely when no damage.
-const ownerDamageLines = (r) => {
-  if (!r.newDamage) return [];
+// Owner "your share" block. The owner receives rental PTO + damage recovery,
+// so itemize PTO + Damage + Total whenever there is damage.
+const ownerShareLines = (r) => {
+  if (!r.newDamage) {
+    return [
+      'BAGIAN ANDA',
+      `${formatIDR(r.payToOwnerPerDay)} x ${r.totalDays ?? 0}`,
+      `= ${formatIDR(r.payToOwner)}`,
+    ];
+  }
   return [
-    row('Catatan', 'ada kerusakan'),
+    'BAGIAN ANDA',
+    row('Sewa', formatIDR(r.payToOwner)),
+    INDENT + `(${formatIDR(r.payToOwnerPerDay)} x ${r.totalDays ?? 0})`,
+    row('Damage', formatIDR(r.damageCharge)),
     r.damageDescription ? INDENT + `(${r.damageDescription})` : null,
+    row('TOTAL', formatIDR(getOwnerPayout(r))),
+  ];
+};
+
+// Owner "amount paid to you" block (settlement).
+const ownerSettleLines = (r) => {
+  if (!r.newDamage) {
+    return ['Dibayar ke Anda', `= ${formatIDR(r.payToOwner)}`];
+  }
+  return [
+    'Dibayar ke Anda',
+    row('Sewa', formatIDR(r.payToOwner)),
+    row('Damage', formatIDR(r.damageCharge)),
+    row('TOTAL', formatIDR(getOwnerPayout(r))),
   ];
 };
 
@@ -174,10 +198,7 @@ export function buildOwnerReturned(r) {
     row('Selesai', formatDate(r.actualFinishDate)),
     row('Hari', String(r.totalDays ?? '—')),
     DIV,
-    'BAGIAN ANDA (PTO)',
-    `${formatIDR(r.payToOwnerPerDay)} x ${r.totalDays ?? 0}`,
-    `= ${formatIDR(r.payToOwner)}`,
-    ownerDamageLines(r),
+    ownerShareLines(r),
     DIV,
     'Serah terima menyusul.',
   ]);
@@ -193,8 +214,7 @@ export function buildOwnerSettlement(r) {
     bikeLines(r, 'Motor'),
     row('Tanggal', formatDateTime(r.ownerSettledAt)),
     DIV,
-    'Dibayar ke Anda',
-    `= ${formatIDR(r.payToOwner)}`,
+    ownerSettleLines(r),
     DIV,
     'Terima kasih atas',
     'kerja samanya!',

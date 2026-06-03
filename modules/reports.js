@@ -60,12 +60,18 @@ export const ReportEngine = {
     const groups = groupBy(rentals, 'ownerId');
     return Object.entries(groups).map(([ownerId, list]) => {
       const owner = OwnerManager.get(ownerId);
+      // The owner receives rental PTO + damage recovery (damage compensates
+      // their asset), so the earning total includes both.
+      const ptoSum = sumBy(list, 'payToOwner');
+      const damageSum = sumBy(list, r => (r.newDamage ? (r.damageCharge || 0) : 0));
       return {
         ownerId,
         ownerName: owner?.name || list[0]?.ownerName || 'Unknown',
         rentalCount: list.length,
         totalDays: sumBy(list, 'totalDays'),
-        totalEarning: sumBy(list, 'payToOwner'),
+        payToOwner: ptoSum,
+        damageRecovery: damageSum,
+        totalEarning: ptoSum + damageSum,
         commission: sumBy(list, 'commission'),
       };
     }).sort((a, b) => b.totalEarning - a.totalEarning);

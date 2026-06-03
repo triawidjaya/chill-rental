@@ -26,3 +26,7 @@ npm-debug.log*
 
 # Local backups exported by the app
 chill-rental-backup-*.json
+
+# Local-only test harness (kept on disk, not shared on GitHub)
+smoke-test.html
+smoke-test*.html

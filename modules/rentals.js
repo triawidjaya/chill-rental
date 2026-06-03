@@ -23,6 +23,17 @@ export const getRentalGrandTotal = (r) => {
   return (r.totalCost || 0) + (r.newDamage ? (r.damageCharge || 0) : 0);
 };
 
+/**
+ * Total the motor owner receives = rental PTO + damage recovery (if any).
+ * The damaged motor is the owner's asset, so the damage compensation is
+ * passed through to the owner — it is NOT kept by the company. The company
+ * keeps only its rental commission (totalCost − payToOwner).
+ */
+export const getOwnerPayout = (r) => {
+  if (!r) return 0;
+  return (r.payToOwner || 0) + (r.newDamage ? (r.damageCharge || 0) : 0);
+};
+
 export const RentalStatus = {
   ACTIVE: 'active',
   RETURNED: 'returned',     // R6/R7: motor physically returned, final cost computed
@@ -423,7 +434,8 @@ export const RentalManager = {
     AuditManager.log({
       entity: AuditEntities.RENTAL, entityId: rentalId,
       entityLabel: rentalLabel(rental), action: 'mark-owner-settled',
-      note: `owner: ${rental.ownerName || '-'} · pto: ${(rental.payToOwner || 0).toLocaleString('id-ID')}`,
+      note: `owner: ${rental.ownerName || '-'} · pto: ${(rental.payToOwner || 0).toLocaleString('id-ID')}`
+        + (rental.newDamage ? ` · damage: ${(rental.damageCharge || 0).toLocaleString('id-ID')} · total: ${getOwnerPayout(rental).toLocaleString('id-ID')}` : ''),
     });
     return this.get(rentalId);
   },

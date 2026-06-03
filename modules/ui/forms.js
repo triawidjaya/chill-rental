@@ -7,7 +7,7 @@ import { Modal, Toast } from './notify.js';
 import { MotorManager } from '../motors.js';
 import { OwnerManager } from '../owners.js';
 import { StaffManager } from '../staff.js';
-import { RentalManager, renderRentalBadge, getRentalGrandTotal } from '../rentals.js';
+import { RentalManager, renderRentalBadge, getRentalGrandTotal, getOwnerPayout } from '../rentals.js';
 import { formatIDR, daysBetween, calcRentalDays, toISODateTime, escapeHTML, formatDate, attachNumericInput } from '../utils.js';
 import { t } from '../i18n.js';
 import { showReceiptModal } from './receipt-modal.js';
@@ -438,7 +438,7 @@ export function openRentalDetail(rentalId) {
                 <div class="action-row">
                   <div style="color:var(--success);min-width:0">
                     <div style="font-weight:600">${t('detail_settled_label')}</div>
-                    <div class="muted" style="font-size:12px;margin-top:2px">${formatDate(r.ownerSettledAt)}</div>
+                    <div class="muted" style="font-size:12px;margin-top:2px">${formatDate(r.ownerSettledAt)} · ${formatIDR(getOwnerPayout(r))}</div>
                   </div>
                   ${canUndoSettle ? `
                     <button class="btn btn--ghost btn--sm action-row__btn" id="btn-unmark-settle" style="color:var(--danger);border-color:var(--danger)">↩ ${t('btn_cancel')}</button>
@@ -446,7 +446,7 @@ export function openRentalDetail(rentalId) {
                 </div>
               ` : (r.paid ? `
                 <button class="btn btn--block" id="btn-mark-settle" style="background:var(--info, #4185d6);color:var(--text-inverse,#fff);box-shadow:0 4px 14px rgba(91,156,246,0.25);font-weight:700">
-                  🔑 ${r.newDamage ? '3.' : '2.'} ${t('detail_step3_settle')}
+                  🔑 ${r.newDamage ? '3.' : '2.'} ${t('detail_step3_settle')} · ${formatIDR(getOwnerPayout(r))}
                 </button>
               ` : `
                 <button class="btn btn--ghost btn--block" disabled style="cursor:not-allowed;opacity:0.55">

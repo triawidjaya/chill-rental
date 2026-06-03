@@ -73,7 +73,7 @@ export function renderReports() {
                 <div class="meter">
                   <div class="meter__fill meter__fill--success" style="width:${(o.totalEarning / maxOwnerEarn) * 100}%"></div>
                 </div>
-                <div class="muted" style="font-size:12px;margin-top:4px">${o.rentalCount} ${t('page_rentals_short')} · ${o.totalDays} ${t('page_days')} · ${t('detail_commission_short').toLowerCase()} ${formatIDR(o.commission)}</div>
+                <div class="muted" style="font-size:12px;margin-top:4px">${o.rentalCount} ${t('page_rentals_short')} · ${o.totalDays} ${t('page_days')} · ${t('detail_commission_short').toLowerCase()} ${formatIDR(o.commission)}${o.damageRecovery ? ` · +${formatIDR(o.damageRecovery)} ${t('page_incl_damage')}` : ''}</div>
               </div>
             `).join('')}
           </div>

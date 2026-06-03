@@ -689,6 +689,7 @@ const strings = {
     wa_invoice: 'Invoice Final (tamu)',
     wa_owner_returned: 'Info Pemilik — Motor Kembali',
     wa_owner_settlement: 'Struk Settlement (pemilik)',
+    page_incl_damage: 'dari kerusakan',
   },
 
   // =============================================
@@ -1340,6 +1341,7 @@ const strings = {
     wa_invoice: 'Final invoice (guest)',
     wa_owner_returned: 'Owner update — Motor returned',
     wa_owner_settlement: 'Settlement receipt (owner)',
+    page_incl_damage: 'from damage',
   },
 };
 
