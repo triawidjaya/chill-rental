@@ -31,7 +31,6 @@ const TABLES = SYNCED_KEYS.map(key => ({ key, table: TABLE_BY_KEY[key] }));
 
 const EPOCH = '1970-01-01T00:00:00.000Z';
 const CURSOR_KEY = '_sync:cursor';
-const INIT_KEY = '_sync:initialized';
 
 class SyncEngine {
   constructor(client, { onRemoteChange, onStatus } = {}) {
@@ -45,13 +44,13 @@ class SyncEngine {
   }
 
   async start() {
-    // First-ever run: queue all existing local records so pre-sync data uploads.
-    if (!storage.get(INIT_KEY)) {
-      SYNCED_KEYS.forEach(k => state.markCollectionDirty(k));
-      storage.set(INIT_KEY, true);
-    }
-
     this._setStatus('syncing');
+
+    // Note: we intentionally do NOT bulk-push existing local data on first run.
+    // Only records the user actually entered/edited (tracked in the outbox by
+    // add/update/remove, persisted to localStorage so offline edits survive) get
+    // pushed. Stale local leftovers that were never touched stay local until
+    // edited — they never leak to the server. The app starts empty by design.
     await this.pull();          // remote -> local
     await this.push();          // local outbox -> remote
     this.subscribeRealtime();   // live updates from other devices

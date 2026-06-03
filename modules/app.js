@@ -7,7 +7,6 @@
 import { state, SYNCED_KEYS } from './state.js';
 import { storage } from './storage.js';
 import { initSync, isSupabaseConfigured, supaAuth } from './supabase.js';
-import { loadSeedData } from './seed.js';
 import { Modal, Toast } from './ui/notify.js';
 import { AuditManager, AuditEntities, AuditActions, setActorResolver } from './audit.js';
 import { SessionManager } from './session.js';
@@ -215,69 +214,7 @@ function toggleTheme() {
   applyTheme(current === 'light' ? 'dark' : 'light');
 }
 
-// ---------- Seed / Reset ----------
-async function handleSeed() {
-  if (!SessionManager.can('data.seed')) { Toast.error(t('auth_no_access')); return; }
-
-  // Hard confirm: the user must type DEMO. With sync active this OVERWRITES all
-  // data and pushes the demo set to Supabase + every device — never accidental.
-  const confirmed = await confirmByTyping({
-    title: 'Muat Data Demo?',
-    message: '⚠️ Ini menimpa SELURUH data (motor, rental, owner) dengan 14 owner, 28 motor, dan 10 rental contoh — lalu menyinkronkannya ke Supabase dan semua perangkat. Tidak bisa dibatalkan.',
-    keyword: 'DEMO',
-    confirmText: 'Muat Demo',
-    variant: 'danger',
-  });
-  if (!confirmed) return;
-
-  loadSeedData();
-  // Bulk replace bypasses the per-record outbox — queue everything for upload.
-  SYNCED_KEYS.forEach((k) => state.markCollectionDirty(k));
-  AuditManager.log({
-    entity: AuditEntities.SYSTEM, entityId: null,
-    entityLabel: 'Demo data', action: AuditActions.SEED,
-  });
-  Toast.success('Data demo berhasil dimuat');
-  renderRoute();
-}
-
-// Type-to-confirm dialog: the confirm button stays disabled until the user types
-// the exact keyword. Returns a Promise<boolean>.
-function confirmByTyping({ title, message, keyword, confirmText = 'Lanjut', variant = 'danger' }) {
-  return new Promise((resolve) => {
-    const body = document.createElement('div');
-    body.innerHTML = `
-      <div class="stack" style="gap:12px">
-        <p style="color:var(--text-secondary);margin:0">${message}</p>
-        <div class="field">
-          <label class="field__label" for="confirm-kw">Ketik <strong>${keyword}</strong> untuk melanjutkan</label>
-          <input id="confirm-kw" class="input" autocomplete="off" placeholder="${keyword}" />
-        </div>
-      </div>
-    `;
-    const footer = document.createElement('div');
-    const btnCancel = document.createElement('button');
-    btnCancel.className = 'btn btn--ghost';
-    btnCancel.textContent = 'Batal';
-    btnCancel.onclick = () => { resolve(false); Modal.close(); };
-
-    const btnOk = document.createElement('button');
-    btnOk.className = variant === 'danger' ? 'btn btn--danger' : 'btn';
-    btnOk.textContent = confirmText;
-    btnOk.disabled = true;
-    btnOk.onclick = () => { resolve(true); Modal.close(); };
-
-    footer.appendChild(btnCancel);
-    footer.appendChild(btnOk);
-
-    Modal.open({ title, body, footer, closeOnBackdrop: true, onClose: () => resolve(false) });
-
-    const input = body.querySelector('#confirm-kw');
-    input.addEventListener('input', () => { btnOk.disabled = input.value.trim() !== keyword; });
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !btnOk.disabled) btnOk.click(); });
-  });
-}
-
+// ---------- Reset ----------
 async function handleReset() {
   const confirmed = await Modal.confirm({
     title: 'Reset Semua Data?',
@@ -361,7 +298,6 @@ function handleImportBackup() {
 const ACTION_PERMISSION = {
   'new-staff':     'staff.manage',
   'edit-staff':    'staff.manage',
-  'seed-demo':     'data.seed',
   'reset-data':    'data.reset',
   'export-backup': 'data.backup',
   'import-backup': 'data.backup',
@@ -415,9 +351,6 @@ function handleAction(action, el) {
       break;
     case 'reset-data':
       handleReset();
-      break;
-    case 'seed-demo':
-      handleSeed();
       break;
     case 'set-lang-id':
       setLang('id');

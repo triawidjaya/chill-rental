@@ -30,7 +30,7 @@ python -m http.server 3000
 npx http-server -p 3000 -c-1
 ```
 
-Then open <http://localhost:3000>. On first run, use **Load Demo Data** in Settings to populate sample owners, motors, and rentals.
+Then open <http://localhost:3000>. The app starts empty — add your owners, motors, and rentals from each section.
 
 ## Tests
 
@@ -51,7 +51,6 @@ modules/
   damages.js          DamageManager
   audit.js            AuditManager — change tracking
   reports.js          ReportEngine — aggregates
-  seed.js             Demo data loader
   i18n.js             Bilingual string table (ID/EN) + helpers
   utils.js            Formatting, dates, currency, CSV helpers
   ui/

@@ -150,7 +150,6 @@ const strings = {
     btn_done: '✅ Selesai — Tutup',
     btn_yes_cancel: 'Ya, Batalkan',
     btn_yes_delete: 'Ya, Hapus Semua',
-    btn_load_demo: 'Muat Demo',
     btn_restore: 'Pulihkan',
     btn_got_it: 'Mengerti',
     btn_return: 'Kembalikan',
@@ -252,13 +251,11 @@ const strings = {
     toast_all_cleared: 'Semua data berhasil dihapus',
     toast_damage_edited: 'Detail kerusakan diperbarui',
     toast_admin_correct_saved: 'Koreksi admin berhasil disimpan',
-    toast_first_run: 'Belum ada data. Klik "Muat Data Demo" di sidebar untuk mulai.',
+    toast_first_run: 'Belum ada data.',
 
     // =============================================
     // CONFIRM DIALOG
     // =============================================
-    confirm_load_demo_title: 'Muat Data Demo?',
-    confirm_load_demo_msg: 'Ini akan mengisi 14 owner, 28 motor, dan 10 rental contoh. Data lama akan ditimpa.',
     confirm_reset_title: 'Hapus Semua Data?',
     confirm_reset_msg: 'Tindakan ini akan menghapus seluruh data motor, rental, pemilik, dan kerusakan. Tidak bisa dibatalkan.',
     confirm_restore_title: 'Pulihkan dari Backup?',
@@ -346,7 +343,7 @@ const strings = {
     empty_audit_filter: 'Tidak ada data yang sesuai filter. Coba ubah atau reset filter.',
     empty_audit: 'Belum ada aktivitas. Riwayat akan muncul otomatis saat data diubah.',
     empty_damages: 'Belum ada kerusakan. Laporan muncul otomatis saat check-out.',
-    empty_first_run: 'Belum ada data. Klik "Muat Data Demo" di sidebar untuk mencoba.',
+    empty_first_run: 'Belum ada data.',
 
     // =============================================
     // STATUS BADGES
@@ -524,7 +521,6 @@ const strings = {
     page_settings_export: 'Unduh Backup',
     page_settings_import: 'Pulihkan dari Backup',
     page_settings_reset: 'Reset Semua Data',
-    page_settings_load_demo: 'Muat Data Demo',
     page_edit_warning: '⚠ Anda mengedit detail rental yang sedang aktif. Setelah check-out, data jadi immutable. Semua perubahan tercatat di Audit Trail.',
     page_admin_correct_warning: '⚠ Rental sudah selesai. Hanya field tertentu yang bisa dikoreksi. Semua perubahan tercatat di audit trail dengan label koreksi-admin.',
     page_immutable_info: '🔒 Tidak bisa diubah: tanggal check-in/out, total hari, total biaya sewa, semua status.',
@@ -891,7 +887,6 @@ const strings = {
     btn_done: '✅ Done — Close',
     btn_yes_cancel: 'Yes, Cancel',
     btn_yes_delete: 'Yes, Delete All',
-    btn_load_demo: 'Load Demo',
     btn_restore: 'Restore',
     btn_got_it: 'Got it',
     btn_return: 'Return',
@@ -989,11 +984,9 @@ const strings = {
     toast_all_cleared: 'All data cleared',
     toast_damage_edited: 'Damage details updated',
     toast_admin_correct_saved: 'Admin correction saved',
-    toast_first_run: 'No data yet. Click "Load Demo Data" in the sidebar to try the app.',
+    toast_first_run: 'No data yet.',
 
     // Confirm dialogs
-    confirm_load_demo_title: 'Load Demo Data?',
-    confirm_load_demo_msg: 'This will fill 14 owners, 28 vehicles, and 10 sample rentals. Existing data will be overwritten.',
     confirm_reset_title: 'Delete All Data?',
     confirm_reset_msg: 'This will delete all vehicles, rentals, owners, and damage data. This cannot be undone.',
     confirm_restore_title: 'Restore from Backup?',
@@ -1077,7 +1070,7 @@ const strings = {
     empty_audit_filter: 'No results match this filter. Try adjusting or resetting.',
     empty_audit: 'No activity yet. The log fills automatically as data changes.',
     empty_damages: 'No damage reports yet. Reports appear automatically at check-out.',
-    empty_first_run: 'No data yet. Click "Load Demo Data" in the sidebar to try the app.',
+    empty_first_run: 'No data yet.',
 
     // Status badges
     badge_active: 'Active',
@@ -1132,7 +1125,6 @@ const strings = {
     page_settings_export: 'Download Backup',
     page_settings_import: 'Restore from Backup',
     page_settings_reset: 'Reset All Data',
-    page_settings_load_demo: 'Load Demo Data',
     page_edit_warning: '⚠ You are editing an active rental. Data becomes immutable after check-out. All changes are recorded in the Audit Trail.',
     page_admin_correct_warning: '⚠ Rental is complete. Only certain fields can be corrected. All changes are recorded in the audit trail as admin-correction.',
     page_immutable_info: '🔒 Cannot be modified: check-in/out dates, total days, total rental cost, all status flags.',
