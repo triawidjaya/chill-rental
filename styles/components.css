@@ -460,6 +460,13 @@
   border-radius: 0 0 var(--r-xl) var(--r-xl);
   flex-shrink: 0;            /* footer must not shrink */
 }
+/* Modal.open() wraps footer content in a bare <div>, so the footer's flex
+   gap/justify never reach the buttons — they touch (esp. when stacked on mobile).
+   Dissolving the wrapper promotes the buttons to direct flex children of
+   .modal__footer, so gap + alignment + the mobile rules below all apply.
+   (.modal-footer-split keeps its own class, so :not([class]) leaves it intact.) */
+.modal__footer > div:not([class]) { display: contents; }
+
 /* Mobile: footer buttons full-width so they are not cramped (3-4 buttons on an active rental) */
 @media (max-width: 600px) {
   .modal__footer {
