@@ -27,6 +27,9 @@ npm-debug.log*
 # Local backups exported by the app
 chill-rental-backup-*.json
 
+# Supabase credentials (copy config.example.js -> config.js and fill in)
+modules/config.js
+
 # Local-only test harness (kept on disk, not shared on GitHub)
 smoke-test.html
 smoke-test*.html

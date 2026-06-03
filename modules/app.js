@@ -4,8 +4,9 @@
 // delegated data-action handlers.
 // ============================================================
 
-import { state } from './state.js';
+import { state, SYNCED_KEYS } from './state.js';
 import { storage } from './storage.js';
+import { initSync } from './supabase.js';
 import { loadSeedData } from './seed.js';
 import { Modal, Toast } from './ui/notify.js';
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
@@ -116,6 +117,24 @@ function updateActiveKPI() {
   $kpiCount.textContent = active;
 }
 
+// Optional sync indicator — updates #sync-status if present in the DOM.
+// Safe no-op until that element is added to the topbar.
+const SYNC_LABELS = {
+  syncing:  { icon: '↻', text: 'Menyinkronkan…' },
+  synced:   { icon: '✓', text: 'Tersinkron' },
+  pending:  { icon: '•', text: 'Menunggu sync' },
+  offline:  { icon: '⚠', text: 'Offline (lokal)' },
+  disabled: { icon: '',  text: '' },
+};
+function updateSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const s = SYNC_LABELS[status] || SYNC_LABELS.disabled;
+  el.textContent = s.icon ? `${s.icon} ${s.text}` : '';
+  el.dataset.syncStatus = status;
+  el.title = s.text;
+}
+
 // ---------- Sidebar (mobile drawer) ----------
 function openSidebar() {
   $sidebar.classList.add('is-open');
@@ -169,6 +188,8 @@ async function handleSeed() {
   });
   if (!confirmed) return;
   loadSeedData();
+  // Bulk replace bypasses the per-record outbox — queue everything for upload.
+  SYNCED_KEYS.forEach((k) => state.markCollectionDirty(k));
   AuditManager.log({
     entity: AuditEntities.SYSTEM, entityId: null,
     entityLabel: 'Demo data', action: AuditActions.SEED,
@@ -244,6 +265,8 @@ function handleImportBackup() {
       ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog', 'settings'].forEach((k) => {
         if (Array.isArray(data[k]) || typeof data[k] === 'object') state.set(k, data[k]);
       });
+      // Bulk replace bypasses the per-record outbox — queue restored data for upload.
+      SYNCED_KEYS.forEach((k) => state.markCollectionDirty(k));
       Toast.success('Data berhasil dipulihkan dari backup');
       renderRoute();
     } catch (err) {
@@ -544,6 +567,13 @@ function boot() {
   // Initial render
   renderRoute();
   renderI18n();
+
+  // Start Supabase sync (offline-first). No-op if modules/config.js is absent
+  // or SYNC_ENABLED=false — the app keeps working on localStorage either way.
+  initSync({
+    onRemoteChange: () => { renderRoute(); updateActiveKPI(); },
+    onStatus: updateSyncStatus,
+  }).catch((e) => console.warn('[Sync] init error', e));
 
   // First-run hint: if no data at all, suggest seed
   const hasAnyData =
