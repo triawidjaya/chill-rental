@@ -1,0 +1,28 @@
+# OS cruft
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs & temp
+*.log
+*.tmp
+tmp/
+
+# Node (only if tooling is ever added — this project has no build step)
+node_modules/
+npm-debug.log*
+
+# Local backups exported by the app
+chill-rental-backup-*.json

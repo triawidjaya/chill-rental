@@ -1,7 +1,7 @@
 // =============================================================
 // modules/i18n.js
-// Sistem bilingual — Bahasa Indonesia (default) + English
-// Semua user-facing string dari UX Copy Review 2026-06-01
+// Bilingual system — Bahasa Indonesia (default) + English
+// All user-facing strings from the UX Copy Review 2026-06-01
 // =============================================================
 
 const STORAGE_KEY = 'lang';
@@ -13,7 +13,7 @@ export const LANG = {
 
 const strings = {
   // =============================================
-  // NAVIGASI
+  // NAVIGATION
   // =============================================
   id: {
     // Sidebar nav
@@ -56,7 +56,7 @@ const strings = {
     route_settings: 'Pengaturan',
 
     // =============================================
-    // FORM SEWA BARU
+    // NEW RENTAL FORM
     // =============================================
     form_step_identity: '1. Identitas Tamu',
     form_step_filter: '2. Filter & Pilih Motor',
@@ -90,7 +90,7 @@ const strings = {
     form_est_total_days: 'Estimasi total hari',
     form_passport_hint: 'Opsional. Diisi jika paspor ditahan sebagai jaminan — umumnya setelah tamu check-out dari penginapan namun sewa masih berlanjut.',
 
-    // Form motor
+    // Motor form
     form_motor_plate: 'Plat Nomor',
     form_motor_plate_hint: 'Harus UNIK — tidak boleh sama dengan plat motor lain',
     form_motor_desc: 'Deskripsi',
@@ -110,7 +110,7 @@ const strings = {
     form_motor_surfrack_no: 'Tidak ada',
     form_motor_surfrack_yes: '🏄 Ada surfrack',
 
-    // Form owner
+    // Owner form
     form_owner_name: 'Nama',
     form_owner_phone: 'No. HP',
     form_owner_type: 'Tipe',
@@ -160,7 +160,7 @@ const strings = {
     btn_save_correction: 'Simpan Koreksi',
 
     // =============================================
-    // VALIDASI
+    // VALIDATION
     // =============================================
     err_guest_required: 'Masukkan nama lengkap tamu',
     err_wa_required: 'Masukkan nomor WhatsApp tamu',
@@ -180,7 +180,7 @@ const strings = {
     err_damage_desc_required: 'Masukkan deskripsi kerusakan',
 
     // =============================================
-    // TOAST SUKSES
+    // TOAST SUCCESS
     // =============================================
     toast_rental_created: 'Rental untuk ${name} berhasil dibuat',
     toast_checkout_done: 'Check-out ${name} selesai',
@@ -676,7 +676,7 @@ const strings = {
     route_damages: 'Damage Claims',
     route_settings: 'Settings',
 
-    // Form sewa baru
+    // New rental form
     form_step_identity: '1. Guest Identity',
     form_step_filter: '2. Filter & Select Vehicle',
     form_step_time: '3. Rental Period',
@@ -709,7 +709,7 @@ const strings = {
     form_est_total_days: 'Estimated total days',
     form_passport_hint: 'Optional. Fill in if passport is held as collateral — typically after guest checks out from accommodation but rental continues.',
 
-    // Form motor
+    // Motor form
     form_motor_plate: 'Plate Number',
     form_motor_plate_hint: 'Must be UNIQUE — cannot duplicate another vehicle plate',
     form_motor_desc: 'Description',
@@ -729,7 +729,7 @@ const strings = {
     form_motor_surfrack_no: 'None',
     form_motor_surfrack_yes: '🏄 Has surfrack',
 
-    // Form owner
+    // Owner form
     form_owner_name: 'Name',
     form_owner_phone: 'Phone',
     form_owner_type: 'Type',
@@ -1244,7 +1244,7 @@ const strings = {
 export function t(key, params = {}) {
   const lang = getLang();
   const raw = strings[lang]?.[key] || strings['id'][key] || `[${key}]`;
-  // Interpolasi sederhana: ${name} diganti dengan params.name
+  // Simple interpolation: ${name} is replaced with params.name
   return raw.replace(/\$\{(\w+)\}/g, (_, p) => {
     return params[p] !== undefined ? params[p] : `\${${p}}`;
   });
@@ -1271,13 +1271,13 @@ export function setLang(lang) {
   try {
     localStorage.setItem(STORAGE_KEY, valid);
   } catch (_) { /* ignore */ }
-  // Dispatch custom event agar semua UI bisa re-render
+  // Dispatch a custom event so the whole UI can re-render
   window.dispatchEvent(new CustomEvent('lang:change', { detail: { lang: valid } }));
 }
 
 /**
- * Helper: render semua elemen dengan atribut data-i18n
- * Dipanggil setelah route berubah atau bahasa diganti
+ * Helper: render all elements with a data-i18n attribute
+ * Called after the route changes or the language is switched
  */
 export function renderI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
