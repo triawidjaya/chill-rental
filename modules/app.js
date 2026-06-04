@@ -33,6 +33,7 @@ import { renderBooking, setupBookingPage, openBookingDetail } from '../pages/boo
 
 import { RentalManager, RentalStatus } from './rentals.js';
 import { BookingManager } from './booking.js';
+import { setPropertyName } from './property.js';
 
 // ---------- Route registry ----------
 const ROUTE_KEYS = {
@@ -482,6 +483,15 @@ function handleAction(action, el) {
     case 'export-rentals':
       // page-local handler in rentals.js handles this via setupRentalsPage
       break;
+    case 'save-property-name': {
+      const input = document.getElementById('set-property-name');
+      if (input) {
+        setPropertyName(input.value);
+        Toast.success(t('toast_property_saved'));
+        renderRoute();
+      }
+      break;
+    }
   }
 }
 

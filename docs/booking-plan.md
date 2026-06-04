@@ -179,11 +179,17 @@ dengan booking/rental lain (returning guest / dobel-submit).
 
 ---
 
-## Fase 8 — Konsistensi branding WA + Property Name di Settings (SETELAH booking plan)
+## Fase 8 — Konsistensi branding WA + Property Name di Settings — ✅ SELESAI 2026-06-04
 
 Diminta 2026-06-04: semua pesan WA ke tamu harus konsisten mengatasnamakan properti
-(PIPES HOSTEL), dan nama properti punya input di halaman Settings. Ditunda ke akhir
-karena tidak menghambat Fase 5.
+(PIPES HOSTEL), dan nama properti punya input di halaman Settings.
+
+Implementasi: `modules/property.js` (`getPropertyName`/`setPropertyName`, baca dari
+`settings.propertyName`, fallback `terms.PROPERTY_NAME`). Field "Property name" di
+Settings (`pages/extras.js`) + handler `save-property-name` (`app.js`). Semua header
+builder WA (`buildGuestCheckin/Invoice/BookingConfirm` + owner `Returned/Settlement`)
+kini pakai `getPropertyName()`. i18n ID/EN ditambahkan.
+Catatan: nomor ref `invoiceNo` tetap prefix `CHILL-` (kode internal, bukan header brand).
 
 - **8.1** Tambah `propertyName` ke `settings` (state) + field input di Settings (`pages/extras.js` `renderSettings`). Default `'PIPES HOSTEL'`.
 - **8.2** Helper `getPropertyName()` → settings → fallback `terms.PROPERTY_NAME` → `'PIPES HOSTEL'`.

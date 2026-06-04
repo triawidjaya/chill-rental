@@ -10,7 +10,8 @@
 
 import { formatIDR, formatDate, formatDateTime } from './utils.js';
 import { getRentalGrandTotal, getOwnerPayout } from './rentals.js';
-import { PROPERTY_NAME, TIPS } from './terms.js';
+import { TIPS } from './terms.js';
+import { getPropertyName } from './property.js';
 
 // ---- Layout primitives -------------------------------------------------
 const LABEL_W = 8;                       // label column width before ": "
@@ -139,7 +140,7 @@ const ownerSettleLines = (r) => {
 export function buildGuestCheckin(r) {
   const days = estimateDays(r);
   return wrap([
-    'CHILL RENTAL · CHECK-IN',
+    `${getPropertyName()} · CHECK-IN`,
     row('No', invoiceNo(r)),
     row('Date', fmtDateTimeEN(r.createdAt)),
     row('Guest', r.guestName || '—'),
@@ -163,7 +164,7 @@ export function buildGuestCheckin(r) {
 /** 👤 Final invoice (after check-out) — English. */
 export function buildGuestInvoice(r) {
   return wrap([
-    'CHILL RENTAL · INVOICE',
+    `${getPropertyName()} · INVOICE`,
     row('No', invoiceNo(r)),
     row('Guest', r.guestName || '—'),
     bikeLines(r, 'Bike'),
@@ -189,7 +190,7 @@ export function buildGuestInvoice(r) {
 /** 👤 Booking confirmation (online booking) — English, in the property's name. */
 export function buildBookingConfirm(b) {
   const block = wrap([
-    `${PROPERTY_NAME} · BOOKING`,
+    `${getPropertyName()} · BOOKING`,
     'Booking confirmed!',
     '',
     row('Code', b.code || '—'),
@@ -214,7 +215,7 @@ export function buildBookingConfirm(b) {
 /** 🏍 Owner notice — motor returned + PTO share (Bahasa Indonesia). */
 export function buildOwnerReturned(r) {
   return wrap([
-    'CHILL RENTAL · INFO PEMILIK',
+    `${getPropertyName()} · INFO PEMILIK`,
     'Motor kembali',
     '',
     row('Ref', invoiceNo(r)),
@@ -233,7 +234,7 @@ export function buildOwnerReturned(r) {
 /** 🏍 Owner settlement receipt — payout done (Bahasa Indonesia). */
 export function buildOwnerSettlement(r) {
   return wrap([
-    'CHILL RENTAL · SETTLEMENT',
+    `${getPropertyName()} · SETTLEMENT`,
     'Pembayaran selesai',
     '',
     row('Ref', invoiceNo(r)),

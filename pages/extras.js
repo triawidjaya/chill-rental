@@ -6,6 +6,7 @@ import { DamageManager } from '../modules/damages.js';
 import { storage } from '../modules/storage.js';
 import { formatIDR, formatDate, escapeHTML } from '../modules/utils.js';
 import { t, setLang, getLang } from '../modules/i18n.js';
+import { getPropertyName } from '../modules/property.js';
 
 export function renderDamages() {
   const damages = [...DamageManager.list()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -57,6 +58,22 @@ export function renderSettings() {
     </div>
 
     <div class="bento">
+      <div class="card span-12">
+        <div class="card__header">
+          <div>
+            <div class="card__title">${t('settings_property_title')}</div>
+            <div class="card__sub">${t('settings_property_sub')}</div>
+          </div>
+        </div>
+        <div class="field">
+          <input id="set-property-name" class="input" type="text" value="${escapeHTML(getPropertyName())}" placeholder="PIPES HOSTEL" maxlength="60" />
+          <span class="field__hint">${t('settings_property_hint')}</span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn--soft" data-action="save-property-name">${t('btn_save')}</button>
+        </div>
+      </div>
+
       <div class="card span-12">
         <div class="card__header">
           <div>
