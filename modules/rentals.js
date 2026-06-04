@@ -831,18 +831,35 @@ export const RentalManager = {
   },
 
   /**
-   * The operational Action Queue: unfinished work grouped into buckets, in
-   * FIXED priority order (most urgent first). Each bucket = { key, items, count }.
-   * The UI renders them top-to-bottom and hides any bucket with count 0.
+   * The operational Action Queue, grouped PER RENTAL (one row per guest) so a
+   * guest with several pending tasks appears once with all their task chips.
+   * Returns [{ rental, tasks: [taskKey, ...] }], tasks in fixed priority order;
+   * the list is sorted so the most-urgent rental (by its top task) comes first.
+   *
+   * Task keys: overdue · awaitingPayment · awaitingSettle · damagePending ·
+   * suspectedDamage. (Passport-held is NOT a task — it's a state shown via the
+   * dashboard KPI; release happens from the rental detail.)
    */
   actionQueue() {
-    return [
-      { key: 'dueOverdue',      items: this.dueOrOverdue() },
-      { key: 'awaitingPayment', items: this.awaitingPayment() },
-      { key: 'awaitingSettle',  items: this.awaitingOwnerSettle() },
-      { key: 'damagePending',   items: this.damagePending() },
-      { key: 'passportReturn',  items: this.passportsToReturn() },
-    ].map(b => ({ ...b, count: b.items.length }));
+    const isRet = (r) => r.status === RentalStatus.RETURNED || r.status === RentalStatus.COMPLETED;
+    // Order in this array == priority (index 0 = most urgent).
+    const TASKS = [
+      { key: 'overdue',         test: (r) => r.status === RentalStatus.ACTIVE && r.finishDate && isEstimateExpired(r.finishDate) },
+      { key: 'awaitingPayment', test: (r) => isRet(r) && !r.paid },
+      { key: 'awaitingSettle',  test: (r) => isRet(r) && r.paid && !r.ownerSettled },
+      { key: 'damagePending',   test: (r) => r.newDamage && !r.damageResolved },
+      { key: 'suspectedDamage', test: (r) => r.status === RentalStatus.ACTIVE && r.suspectedDamage },
+    ];
+
+    const items = [];
+    for (const r of this.list()) {
+      if (r.status === RentalStatus.CANCELLED) continue;
+      const tasks = TASKS.filter(td => td.test(r)).map(td => td.key);
+      if (tasks.length) items.push({ rental: r, tasks });
+    }
+    const rank = (k) => TASKS.findIndex(td => td.key === k);
+    items.sort((a, b) => rank(a.tasks[0]) - rank(b.tasks[0]));
+    return items;
   },
 
   // Queries

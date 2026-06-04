@@ -21,7 +21,7 @@ the **Reports** page, where the audience and — in Fase B — the role gating f
 | Alert banner: expired estimate + past cut-off | `isEstimateExpired`, dashboard.js:33 | 🟢 High, actionable | **Keep**, merge into Action Queue |
 | KPI **Motor Disewa** + utilization % | `ov.motorsRented`, `ov.utilizationPct` | 🟡 Count ok; **%** is a manager metric | Simplify (drop %) |
 | KPI **Tersedia** | `ov.motorsAvailable` | 🟢 High — answers "any bike ready?" for walk-ins | **Keep** |
-| KPI **Paspor Ditahan** | `ov.passportsKept` | 🟡 Count only, not clickable | Convert to **actionable row** in queue |
+| KPI **Paspor Ditahan** | `ov.passportsKept` | 🟢 Physical-inventory reconciliation (count vs drawer) | **Keep KPI** + actionable list in the queue |
 | KPI **Pendapatan + Komisi** | `ov.revenueMonth`, `ov.commissionMonth` | 🔴 Financial, not a staff task + privacy | **Move to Reports** (manager-only in Fase B) |
 | **Volume chart** (span-8, dominant) | `rentalsByDay(14)` | 🔴 Retrospective analytics | **Move to Reports** |
 | **By Category** (fleet mix) | `motorsByCategory` | 🟢 Encodes the rental **priority rule** (Properti → Staf → Non-staf) | **Keep** (operational, per user) |
@@ -40,18 +40,26 @@ the **Reports** page, where the audience and — in Fase B — the role gating f
 ## Proposed new dashboard layout
 
 1. **Action Queue — "Tugas Hari Ini"** (replaces the volume chart as the hero block)
-   Clickable rows, each `data-action="open-rental"`, showing a count + opening the
-   rental detail to be worked. Hide a row when its count is 0.
+   **Grouped PER GUEST** (one row per rental needing action), each
+   `data-action="open-rental"` → opens the rental detail. A guest with several
+   pending tasks shows **once**, with one chip per task. Rows sorted most-urgent
+   first (by the guest's top-priority task). Positive empty state when nothing pends.
 
-   | Row | Source | Meaning |
-   |-----|--------|---------|
-   | 🔴 Jatuh tempo / telat | active + `isEstimateExpired(finishDate)` (+ 11:00 cut-off) | Motor harus di-checkout hari ini / sudah lewat |
-   | 🟡 Menunggu pembayaran | `RentalManager.awaitingPayment()` | Sudah returned, belum dibayar |
-   | 🔵 Menunggu settle owner | `RentalManager.awaitingOwnerSettle()` | Sudah dibayar, owner belum disettle |
-   | 🟠 Damage belum beres | `RentalManager.damagePending()` | Ada kerusakan belum di-resolve |
-   | 📘 Paspor dikembalikan | active + `passportHeld` | Paspor jaminan menunggu dikembalikan |
+   Task chips (priority order = chip order):
+   | Chip | Source | Meaning |
+   |------|--------|---------|
+   | 🔴 Telat | active + `isEstimateExpired(finishDate)` | Motor harus di-checkout / sudah lewat |
+   | 🟡 Belum bayar | returned + `!paid` | Sudah returned, belum dibayar |
+   | 🔵 Settle owner | returned + paid + `!ownerSettled` | Sudah dibayar, owner belum disettle |
+   | 🟠 Damage | `newDamage && !damageResolved` | Kerusakan (pasca-checkout) belum beres |
+   | ⚠ Cek damage | active + `suspectedDamage` | Dugaan kerusakan di rental aktif — periksa saat balik |
 
-   Merge today's existing expired-estimate banner into the 🔴 row (avoid duplication).
+   Notes:
+   - The old expired-estimate banner is merged into the 🔴 chip (no duplication).
+   - **Paspor-held is NOT a queue task** — it's a state shown via the dashboard KPI
+     (physical reconciliation); release happens from the rental detail.
+   - `suspectedDamage` (active flag via `flagDamage`) is distinct from `newDamage`
+     (set at checkout) — both are surfaced, as different chips.
 
 2. **Slim status strip** (small KPIs that ARE operational)
    - Tersedia (motors available) — for walk-ins.
@@ -149,7 +157,9 @@ browser-QA only.
 
 **A3 · Slim status strip (browser)**
 - Reduce the KPI row to operational counts only: **Tersedia**, **Motor disewa** (no %),
-  **Rental aktif**. Remove the **Pendapatan + Komisi** KPI entirely (no money).
+  **Rental aktif**, **Paspor Ditahan** (physical-inventory reconciliation — count of
+  passports that should be in the drawer). Remove the **Pendapatan + Komisi** KPI
+  entirely (no money).
 
 **A4 · Move analytics to Reports (browser)**
 - Add the 14-day **volume chart** and **Top Motors** rendering to `pages/reports.js`

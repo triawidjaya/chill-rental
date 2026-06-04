@@ -697,6 +697,12 @@ const strings = {
     queue_damage_pending: 'Damage belum beres',
     queue_passport_return: 'Paspor dikembalikan',
     page_of_total_simple: 'dari ${n} motor',
+    page_guests_pending: 'tamu perlu ditangani',
+    chip_overdue: 'Telat',
+    chip_unpaid: 'Belum bayar',
+    chip_settle: 'Settle owner',
+    chip_damage: 'Damage',
+    chip_check_damage: 'Cek damage',
 
     // =============================================
     // AUTH / ROLES (Fase B.2)
@@ -1425,6 +1431,12 @@ const strings = {
     queue_damage_pending: 'Damage pending',
     queue_passport_return: 'Passport to return',
     page_of_total_simple: 'of ${n} motors',
+    page_guests_pending: 'guests need attention',
+    chip_overdue: 'Overdue',
+    chip_unpaid: 'Unpaid',
+    chip_settle: 'Settle owner',
+    chip_damage: 'Damage',
+    chip_check_damage: 'Check damage',
 
     // Auth / roles (Fase B.2)
     role_manager: 'Manager',
