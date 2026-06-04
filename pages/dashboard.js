@@ -112,7 +112,7 @@ export function renderDashboard() {
         <div class="kpi">
           <span class="kpi__label">${t('page_passports_held')}</span>
           <span class="kpi__value">${ov.passportsKept}</span>
-          <span class="kpi__sub">${t('page_held_by_staff')}</span>
+          <span class="kpi__sub">${t('page_passport_offsite')}</span>
         </div>
       </div>
 

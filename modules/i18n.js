@@ -703,6 +703,7 @@ const strings = {
     chip_settle: 'Settle owner',
     chip_damage: 'Damage',
     chip_check_damage: 'Cek damage',
+    page_passport_offsite: 'Tamu tidak menginap di properti',
 
     // =============================================
     // AUTH / ROLES (Fase B.2)
@@ -1437,6 +1438,7 @@ const strings = {
     chip_settle: 'Settle owner',
     chip_damage: 'Damage',
     chip_check_damage: 'Check damage',
+    page_passport_offsite: 'Guest not staying at property',
 
     // Auth / roles (Fase B.2)
     role_manager: 'Manager',
