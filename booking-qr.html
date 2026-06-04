@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PIPES HOSTEL — Booking QR</title>
+  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;🏍️&lt;/text&gt;&lt;/svg&gt;" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --ink:#1a1612; --muted:#5a544e; --amber:#e8a048; --cream:#f7f4ef; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--cream); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+           min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { background:#fff; border:1.5px solid var(--amber); border-radius:24px; padding:36px 32px;
+            max-width:420px; width:100%; text-align:center; box-shadow:0 14px 36px rgba(26,22,18,.10); }
+    h1 { font-family:'Manrope',sans-serif; font-weight:800; font-size:30px; margin:0; letter-spacing:.01em; }
+    .sub { color:var(--muted); font-size:15px; margin:6px 0 24px; }
+    .cta { font-family:'Manrope',sans-serif; font-weight:800; font-size:22px; margin:0 0 4px; }
+    .hint { color:var(--muted); font-size:14px; margin:0 0 20px; }
+    #qr { display:inline-block; padding:14px; background:#fff; border-radius:16px; }
+    #qr svg { display:block; width:240px; height:240px; }
+    .url { font-size:12px; color:var(--muted); word-break:break-all; margin-top:18px; }
+    .btn { margin-top:22px; font:inherit; font-weight:700; background:var(--amber); color:#1a1209;
+           border:none; border-radius:999px; padding:11px 26px; cursor:pointer; }
+    @media print {
+      body { background:#fff; padding:0; }
+      .card { border:none; box-shadow:none; }
+      .btn { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>PIPES HOSTEL</h1>
+    <p class="sub">Motorbike Rental</p>
+    <p class="cta">📲 Scan to book</p>
+    <p class="hint">Book your motorbike online in 1 minute</p>
+    <div id="qr" aria-label="Booking QR code"></div>
+    <div class="url" id="url-text"></div>
+    <button class="btn" onclick="window.print()">🖨️ Print</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script>
+    // Booking URL — override with ?url=... if needed.
+    var params = new URLSearchParams(location.search);
+    var url = params.get('url') || 'https://triawidjaya.github.io/chill-rental/booking.html';
+    document.getElementById('url-text').textContent = url;
+    try {
+      var qr = qrcode(0, 'M');     // auto type, medium error-correction
+      qr.addData(url);
+      qr.make();
+      document.getElementById('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 1 });
+    } catch (e) {
+      document.getElementById('qr').textContent = 'QR failed to load — check your connection.';
+    }
+  </script>
+</body>
+</html>
