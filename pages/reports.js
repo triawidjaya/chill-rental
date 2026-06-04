@@ -11,9 +11,11 @@ export function renderReports() {
   const ov = ReportEngine.overview();
   const byOwner = ReportEngine.earningsByOwner(ym);
   const topMotors = ReportEngine.topMotors(10, ym);
+  const daily = ReportEngine.rentalsByDay(14);
   const monthLabel = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
   const maxOwnerEarn = Math.max(...byOwner.map(o => o.totalEarning), 1);
+  const maxDaily = Math.max(...daily.map(d => d.count), 1);
 
   return `
     <div class="page__header">
@@ -50,6 +52,42 @@ export function renderReports() {
           <span class="kpi__label">${t('detail_damage_charge')}</span>
           <span class="kpi__value kpi__value--sm">${formatIDR(ov.damageRecoveryMonth)}</span>
           <span class="kpi__sub">${t('page_from_damages')}</span>
+        </div>
+      </div>
+
+      <!-- Volume chart (moved from dashboard — analytics belong here) -->
+      <div class="card span-12">
+        <div class="card__header">
+          <div>
+            <div class="card__title">${t('page_rental_volume')}</div>
+            <div class="card__sub">${daily[0]?.label?.split(' ').slice(1).join(' ') || ''} ${new Date().getFullYear()} · ${daily.reduce((s, d) => s + d.count, 0)} ${t('page_total_rentals')} · ${t('page_peak')} ${maxDaily}/${t('page_per_day')}</div>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-grid__axis">
+            <span>${maxDaily}</span>
+            <span>${Math.ceil(maxDaily / 2)}</span>
+            <span>0</span>
+          </div>
+          <div class="chart-grid__plot">
+            <div class="chart-grid__line" style="top:0"></div>
+            <div class="chart-grid__line" style="top:50%"></div>
+            <div class="chart-grid__line" style="bottom:0"></div>
+            <div class="chart-bars" role="img" aria-label="Grafik volume rental 14 hari">
+              ${daily.map((d, i) => {
+                const dayOnly = d.label.split(' ')[0];
+                const monthSwitch = i > 0 && d.label.split(' ')[1] !== daily[i-1].label.split(' ')[1];
+                return `
+                <div class="chart-bar">
+                  <div class="chart-bar__fill" data-zero="${d.count === 0 ? 'true' : 'false'}" style="height:${d.count === 0 ? 0 : (d.count / maxDaily) * 100}%">
+                    <span class="chart-bar__value">${d.count}</span>
+                  </div>
+                  <div class="chart-bar__label">${monthSwitch ? d.label : dayOnly}</div>
+                </div>
+              `;
+              }).join('')}
+            </div>
+          </div>
         </div>
       </div>
 

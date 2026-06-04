@@ -5,7 +5,7 @@
 // =============================================================
 
 import { state } from './state.js';
-import { uid, daysBetween, calcRentalDays, formatDate } from './utils.js';
+import { uid, daysBetween, calcRentalDays, formatDate, isEstimateExpired } from './utils.js';
 import { MotorManager, MotorStatus } from './motors.js';
 import { t } from './i18n.js';
 // OwnerManager is no longer imported after R3 (PTO moved to the motor)
@@ -811,6 +811,38 @@ export const RentalManager = {
       const isReturned = r.status === RentalStatus.RETURNED || r.status === RentalStatus.COMPLETED;
       return isReturned && r.paid && r.ownerSettled && r.damageResolved;
     });
+  },
+
+  // =====================================================
+  // A1 — Dashboard "Action Queue" (operational to-do)
+  // =====================================================
+
+  /**
+   * Active rentals whose estimated finish date has already passed — the motor
+   * is due (or overdue) for check-out. Same rule as the dashboard banner.
+   */
+  dueOrOverdue() {
+    return this.active().filter(r => r.finishDate && isEstimateExpired(r.finishDate));
+  },
+
+  /** Active rentals whose guarantee passport is still held (waiting to be returned). */
+  passportsToReturn() {
+    return this.active().filter(r => r.passportHeld);
+  },
+
+  /**
+   * The operational Action Queue: unfinished work grouped into buckets, in
+   * FIXED priority order (most urgent first). Each bucket = { key, items, count }.
+   * The UI renders them top-to-bottom and hides any bucket with count 0.
+   */
+  actionQueue() {
+    return [
+      { key: 'dueOverdue',      items: this.dueOrOverdue() },
+      { key: 'awaitingPayment', items: this.awaitingPayment() },
+      { key: 'awaitingSettle',  items: this.awaitingOwnerSettle() },
+      { key: 'damagePending',   items: this.damagePending() },
+      { key: 'passportReturn',  items: this.passportsToReturn() },
+    ].map(b => ({ ...b, count: b.items.length }));
   },
 
   // Queries

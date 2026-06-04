@@ -686,6 +686,17 @@ const strings = {
     wa_owner_returned: 'Info Pemilik — Motor Kembali',
     wa_owner_settlement: 'Struk Settlement (pemilik)',
     page_incl_damage: 'dari kerusakan',
+    // Dashboard Action Queue
+    page_action_queue: 'Tugas Hari Ini',
+    page_tasks_pending: 'tugas perlu ditangani',
+    page_all_clear: 'Semua tugas beres ✅',
+    page_all_clear_sub: 'Tidak ada yang perlu ditindaklanjuti sekarang.',
+    queue_due_overdue: 'Jatuh tempo / telat',
+    queue_awaiting_payment: 'Menunggu pembayaran',
+    queue_awaiting_settle: 'Menunggu settle owner',
+    queue_damage_pending: 'Damage belum beres',
+    queue_passport_return: 'Paspor dikembalikan',
+    page_of_total_simple: 'dari ${n} motor',
 
     // =============================================
     // AUTH / ROLES (Fase B.2)
@@ -1403,6 +1414,17 @@ const strings = {
     wa_owner_returned: 'Owner update — Motor returned',
     wa_owner_settlement: 'Settlement receipt (owner)',
     page_incl_damage: 'from damage',
+    // Dashboard Action Queue
+    page_action_queue: "Today's Tasks",
+    page_tasks_pending: 'tasks to handle',
+    page_all_clear: 'All caught up ✅',
+    page_all_clear_sub: 'Nothing needs follow-up right now.',
+    queue_due_overdue: 'Due / overdue',
+    queue_awaiting_payment: 'Awaiting payment',
+    queue_awaiting_settle: 'Awaiting owner settle',
+    queue_damage_pending: 'Damage pending',
+    queue_passport_return: 'Passport to return',
+    page_of_total_simple: 'of ${n} motors',
 
     // Auth / roles (Fase B.2)
     role_manager: 'Manager',

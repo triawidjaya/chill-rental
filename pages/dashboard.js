@@ -5,22 +5,82 @@
 
 import { ReportEngine } from '../modules/reports.js';
 import { RentalManager } from '../modules/rentals.js';
-import { formatIDR, formatNumber, formatDate, escapeHTML, isEstimateExpired, isPastCutoffToday } from '../modules/utils.js';
+import { formatDate, escapeHTML, isPastCutoffToday } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
+
+// Action Queue buckets — icon + label, rendered in the fixed priority order
+// returned by RentalManager.actionQueue().
+const QUEUE_META = {
+  dueOverdue:      { icon: '🔴', labelKey: 'queue_due_overdue' },
+  awaitingPayment: { icon: '🟡', labelKey: 'queue_awaiting_payment' },
+  awaitingSettle:  { icon: '🔵', labelKey: 'queue_awaiting_settle' },
+  damagePending:   { icon: '🟠', labelKey: 'queue_damage_pending' },
+  passportReturn:  { icon: '📘', labelKey: 'queue_passport_return' },
+};
+
+function queueItemRow(r, key) {
+  const right = key === 'dueOverdue'
+    ? `<span class="badge badge--warning">${t('page_estimate_label')} ${formatDate(r.finishDate)}</span>`
+    : '';
+  return `
+    <div class="list-item" data-action="open-rental" data-id="${r.id}">
+      <div class="list-item__main">
+        <div class="list-item__title">${escapeHTML(r.guestName)}</div>
+        <div class="list-item__sub">${escapeHTML(r.motorPlate)}${r.motorDescription ? ' · ' + escapeHTML(r.motorDescription) : ''}</div>
+      </div>
+      ${right}
+    </div>
+  `;
+}
+
+// The operational "Today's Tasks" card. Hides empty buckets; shows a positive
+// empty state when there is nothing pending.
+function renderActionQueue(queue, pastCutoffToday) {
+  const totalPending = queue.reduce((s, b) => s + b.count, 0);
+  const sub = `${totalPending} ${t('page_tasks_pending')}${pastCutoffToday ? ' · ' + t('page_past_cutoff') : ''}`;
+
+  const inner = totalPending === 0
+    ? `<div class="empty" style="padding:20px 0">
+         <p class="empty__title">${t('page_all_clear')}</p>
+         <p>${t('page_all_clear_sub')}</p>
+       </div>`
+    : queue.filter(b => b.count > 0).map(b => {
+        const meta = QUEUE_META[b.key];
+        return `
+          <div style="margin-top:12px">
+            <div class="row row--between" style="margin-bottom:6px">
+              <span style="font-weight:700;font-size:13px">${meta.icon} ${t(meta.labelKey)}</span>
+              <span class="badge">${b.count}</span>
+            </div>
+            <div class="list-card" style="margin:0">
+              ${b.items.map(r => queueItemRow(r, b.key)).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card__header" style="margin-bottom:4px">
+        <div>
+          <div class="card__title">${t('page_action_queue')}</div>
+          <div class="card__sub">${sub}</div>
+        </div>
+      </div>
+      ${inner}
+    </div>
+  `;
+}
 
 export function renderDashboard() {
   const ov = ReportEngine.overview();
   const activeAll = RentalManager.active();
   const recentActive = activeAll.slice(-5).reverse();
-  const daily = ReportEngine.rentalsByDay(14);
-  const topMotors = ReportEngine.topMotors(5);
   const byCat = ReportEngine.motorsByCategory();
 
-  // Rentals that need attention (estimate already passed)
-  const expiredEstimate = activeAll.filter(r => r.finishDate && isEstimateExpired(r.finishDate));
+  // Operational Action Queue (A1) — unfinished work in fixed priority order
+  const queue = RentalManager.actionQueue();
   const pastCutoffToday = isPastCutoffToday(11);
-
-  const maxDaily = Math.max(...daily.map(d => d.count), 1);
 
   return `
     <div class="page__header">
@@ -30,39 +90,11 @@ export function renderDashboard() {
       </div>
     </div>
 
-    ${expiredEstimate.length > 0 ? `
-      <div class="card" style="background:var(--warning-soft, #fff3cd);border-color:var(--warning, #b58900);margin-bottom:16px;padding:14px">
-        <div style="font-weight:700;color:var(--warning, #b58900);margin-bottom:8px">
-          ⚠ ${expiredEstimate.length} ${t('page_expired_estimate')}${pastCutoffToday ? ' · ' + t('page_past_cutoff') : ''}
-        </div>
-        <div class="list-card" style="margin:0">
-          ${expiredEstimate.slice(0, 3).map(r => `
-            <div class="list-item" data-action="open-rental" data-id="${r.id}">
-              <div class="list-item__main">
-                <div class="list-item__title">${escapeHTML(r.guestName)}</div>
-                <div class="list-item__sub">${escapeHTML(r.motorPlate)} · ${t('page_estimate_label')} ${formatDate(r.finishDate)}</div>
-              </div>
-              <span class="badge badge--warning">${t('badge_need_checkout')}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    ` : ''}
+    ${renderActionQueue(queue, pastCutoffToday)}
 
     <div class="bento">
-      <!-- KPI Row -->
-      <div class="card span-3 card--accent">
-        <div class="kpi">
-          <span class="kpi__label">${t('page_rented_motors')}</span>
-          <span class="kpi__value">${ov.motorsRented}</span>
-          <span class="kpi__sub">${t('page_of_total', { n: ov.totalMotors, pct: ov.utilizationPct })}</span>
-          <div class="meter" style="margin-top:8px">
-            <div class="meter__fill" style="width:${ov.utilizationPct}%"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card span-3">
+      <!-- KPI Row — operational counts only (no money; financials live on Reports) -->
+      <div class="card span-4 card--accent">
         <div class="kpi">
           <span class="kpi__label">${t('page_available')}</span>
           <span class="kpi__value">${ov.motorsAvailable}</span>
@@ -70,55 +102,19 @@ export function renderDashboard() {
         </div>
       </div>
 
-      <div class="card span-3">
+      <div class="card span-4">
         <div class="kpi">
-          <span class="kpi__label">${t('page_passports_held')}</span>
-          <span class="kpi__value">${ov.passportsKept}</span>
-          <span class="kpi__sub">${t('page_held_by_staff')}</span>
+          <span class="kpi__label">${t('page_rented_motors')}</span>
+          <span class="kpi__value">${ov.motorsRented}</span>
+          <span class="kpi__sub">${t('page_of_total_simple', { n: ov.totalMotors })}</span>
         </div>
       </div>
 
-      <div class="card span-3">
+      <div class="card span-4">
         <div class="kpi">
-          <span class="kpi__label">${t('page_monthly_revenue')}</span>
-          <span class="kpi__value kpi__value--sm">${formatIDR(ov.revenueMonth)}</span>
-          <span class="kpi__sub">${t('detail_commission_short')}: ${formatIDR(ov.commissionMonth)}</span>
-        </div>
-      </div>
-
-      <!-- Volume chart -->
-      <div class="card span-8">
-        <div class="card__header">
-          <div>
-            <div class="card__title">${t('page_rental_volume')}</div>
-            <div class="card__sub">${daily[0]?.label?.split(' ').slice(1).join(' ') || ''} ${new Date().getFullYear()} · ${daily.reduce((s, d) => s + d.count, 0)} ${t('page_total_rentals')} · ${t('page_peak')} ${maxDaily}/${t('page_per_day')}</div>
-          </div>
-        </div>
-        <div class="chart-grid">
-          <div class="chart-grid__axis">
-            <span>${maxDaily}</span>
-            <span>${Math.ceil(maxDaily / 2)}</span>
-            <span>0</span>
-          </div>
-          <div class="chart-grid__plot">
-            <div class="chart-grid__line" style="top:0"></div>
-            <div class="chart-grid__line" style="top:50%"></div>
-            <div class="chart-grid__line" style="bottom:0"></div>
-            <div class="chart-bars" role="img" aria-label="Grafik volume rental 14 hari">
-              ${daily.map((d, i) => {
-                const dayOnly = d.label.split(' ')[0];
-                const monthSwitch = i > 0 && d.label.split(' ')[1] !== daily[i-1].label.split(' ')[1];
-                return `
-                <div class="chart-bar">
-                  <div class="chart-bar__fill" data-zero="${d.count === 0 ? 'true' : 'false'}" style="height:${d.count === 0 ? 0 : (d.count / maxDaily) * 100}%">
-                    <span class="chart-bar__value">${d.count}</span>
-                  </div>
-                  <div class="chart-bar__label">${monthSwitch ? d.label : dayOnly}</div>
-                </div>
-              `;
-              }).join('')}
-            </div>
-          </div>
+          <span class="kpi__label">${t('page_active_rentals')}</span>
+          <span class="kpi__value">${ov.activeRentals}</span>
+          <span class="kpi__sub">${t('page_active_ongoing')}</span>
         </div>
       </div>
 
@@ -147,7 +143,7 @@ export function renderDashboard() {
       </div>
 
       <!-- Active Rentals -->
-      <div class="card span-6">
+      <div class="card span-8">
         <div class="card__header">
           <div>
             <div class="card__title">${t('page_active_rentals')}</div>
@@ -181,38 +177,6 @@ export function renderDashboard() {
         `}
       </div>
 
-      <!-- Top Motors -->
-      <div class="card span-6">
-        <div class="card__header">
-          <div>
-            <div class="card__title">${t('page_top_motors')}</div>
-            <div class="card__sub">${t('page_by_revenue')}</div>
-          </div>
-        </div>
-        ${topMotors.length === 0 ? `
-          <div class="empty">
-            <div class="empty__icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            </div>
-            <p class="empty__title">${t('page_no_data')}</p>
-          </div>
-        ` : `
-          <div class="list-card">
-            ${topMotors.map((m, i) => `
-              <div class="list-item">
-                <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-soft);color:var(--brand-soft-text);display:grid;place-items:center;font-weight:700;font-size:14px">${i + 1}</div>
-                <div class="list-item__main">
-                  <div class="list-item__title">${escapeHTML(m.plate)}</div>
-                  <div class="list-item__sub">${escapeHTML(m.description)} · ${m.rentalCount}× ${t('page_rentals_short')}</div>
-                </div>
-                <div style="text-align:right">
-                  <div style="font-weight:700">${formatIDR(m.revenue)}</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        `}
-      </div>
     </div>
   `;
 }
