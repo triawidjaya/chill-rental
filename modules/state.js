@@ -14,7 +14,7 @@
 import { storage } from './storage.js';
 
 // Collections that mirror to Supabase. 'settings' stays local-only.
-export const SYNCED_KEYS = ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog'];
+export const SYNCED_KEYS = ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog', 'bookings'];
 
 class AppState {
   constructor() {
@@ -25,6 +25,7 @@ class AppState {
       damages:  storage.get('damages', []),
       staff:    storage.get('staff', []),
       auditLog: storage.get('auditLog', []),
+      bookings: storage.get('bookings', []),   // booking online (form tamu) — Fase B booking
       settings: storage.get('settings', { theme: 'light', currency: 'IDR' }),
     };
     this.listeners = new Map(); // key -> Set<fn>

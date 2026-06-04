@@ -10,6 +10,7 @@
 
 import { formatIDR, formatDate, formatDateTime } from './utils.js';
 import { getRentalGrandTotal, getOwnerPayout } from './rentals.js';
+import { PROPERTY_NAME, TIPS } from './terms.js';
 
 // ---- Layout primitives -------------------------------------------------
 const LABEL_W = 8;                       // label column width before ": "
@@ -183,6 +184,31 @@ export function buildGuestInvoice(r) {
     'Thank you! See you',
     'next time. 🌴',
   ]);
+}
+
+/** 👤 Booking confirmation (online booking) — English, in the property's name. */
+export function buildBookingConfirm(b) {
+  const block = wrap([
+    `${PROPERTY_NAME} · BOOKING`,
+    'Booking confirmed!',
+    '',
+    row('Code', b.code || '—'),
+    row('Guest', b.guestName || '—'),
+    row('Bike', `${b.ccClass || '—'} cc`),
+    row('Rack', b.surfrack ? 'Yes' : 'No'),
+    DIV,
+    'PERIOD (estimate)',
+    row('Start', fmtDateEN(b.startDate)),
+    row('End', fmtDateEN(b.finishDate)),
+    row('Rate', b.quotedPricePerDay ? `${formatIDR(b.quotedPricePerDay)}/day` : '—'),
+    DIV,
+    'Pay at the end of rental.',
+    'Final price set at check-in.',
+    'See you soon! 🏍️',
+  ]);
+  // Tips as normal WhatsApp text (wraps nicely on a phone, unlike the fenced block).
+  const tips = '\n\n💡 *Tips*\n' + TIPS.map(tip => '• ' + tip).join('\n');
+  return block + tips;
 }
 
 /** 🏍 Owner notice — motor returned + PTO share (Bahasa Indonesia). */

@@ -14,6 +14,7 @@ export const AuditEntities = {
   DAMAGE: 'damage',
   USER: 'user',
   SYSTEM: 'system',
+  BOOKING: 'booking',
 };
 
 export const AuditActions = {
@@ -28,6 +29,11 @@ export const AuditActions = {
   MARK_OWNER_SETTLED: 'mark-owner-settled',
   MARK_DAMAGE_RESOLVED: 'mark-damage-resolved',
   PASSPORT_HOLD: 'passport-hold',          // R9
+  // Online booking (guest self-service)
+  BOOKING_CONFIRM: 'booking-confirm',
+  BOOKING_REJECT: 'booking-reject',
+  BOOKING_CANCEL: 'booking-cancel',
+  BOOKING_CHECKED_IN: 'booking-checked-in',
   // Auth (Phase B)
   LOGIN: 'login',
   LOGIN_FAIL: 'login-fail',

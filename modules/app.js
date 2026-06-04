@@ -29,12 +29,15 @@ import { renderReports } from '../pages/reports.js';
 import { renderAudit, setupAuditPage } from '../pages/audit.js';
 import { renderStaff, setupStaffPage, openStaffForm, openPinDialog } from '../pages/staff.js';
 import { renderDamages, renderSettings } from '../pages/extras.js';
+import { renderBooking, setupBookingPage, openBookingDetail } from '../pages/booking.js';
 
 import { RentalManager, RentalStatus } from './rentals.js';
+import { BookingManager } from './booking.js';
 
 // ---------- Route registry ----------
 const ROUTE_KEYS = {
   dashboard: 'route_dashboard',
+  bookings:  'route_bookings',
   rentals:   'route_rentals',
   motors:    'route_motors',
   owners:    'route_owners',
@@ -47,6 +50,7 @@ const ROUTE_KEYS = {
 
 const ROUTES = {
   dashboard: { title: () => t('route_dashboard'), render: renderDashboard, setup: null },
+  bookings:  { title: () => t('route_bookings') || 'Bookings', render: renderBooking, setup: setupBookingPage },
   rentals:   { title: () => t('route_rentals'),   render: renderRentals,   setup: setupRentalsPage },
   motors:    { title: () => t('route_motors'),    render: renderMotors,    setup: setupMotorsPage },
   owners:    { title: () => t('route_owners'),    render: renderOwners,    setup: setupOwnersPage },
@@ -118,6 +122,7 @@ function renderRoute() {
 
   // Update active rentals KPI
   updateActiveKPI();
+  updateBookingBadge();
 
   // Close mobile drawer if open
   closeSidebar();
@@ -133,6 +138,15 @@ function updateActiveKPI() {
   // BUG-FIX: list() does not accept a filter arg. Use the active() helper directly.
   const active = RentalManager.active().length;
   $kpiCount.textContent = active;
+}
+
+// Pending-booking count badge on the sidebar nav (live via renderRoute/onRemoteChange).
+function updateBookingBadge() {
+  const el = document.getElementById('nav-booking-badge');
+  if (!el) return;
+  const n = BookingManager.pending().length;
+  el.textContent = n;
+  el.style.display = n > 0 ? '' : 'none';
 }
 
 // Optional sync indicator — updates #sync-status if present in the DOM.
@@ -323,7 +337,7 @@ async function handleReset() {
   // Restore device preferences (theme/lang + the reset password) so the gate
   // survives a wipe — reset clears business DATA, not your device settings.
   state.set('settings', settings);
-  ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog'].forEach((k) => state.set(k, []));
+  ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog', 'bookings'].forEach((k) => state.set(k, []));
   AuditManager.log({
     entity: AuditEntities.SYSTEM, entityId: null,
     entityLabel: 'Reset all data', action: AuditActions.RESET_ALL,
@@ -345,6 +359,7 @@ function handleExportBackup() {
     damages:  state.get('damages')  || [],
     staff:    state.get('staff')    || [],
     auditLog: state.get('auditLog') || [],
+    bookings: state.get('bookings') || [],
     settings: state.get('settings') || {},
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -376,7 +391,7 @@ function handleImportBackup() {
         variant: 'danger',
       });
       if (!confirmed) return;
-      ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog', 'settings'].forEach((k) => {
+      ['motors', 'rentals', 'owners', 'damages', 'staff', 'auditLog', 'bookings', 'settings'].forEach((k) => {
         if (Array.isArray(data[k]) || typeof data[k] === 'object') state.set(k, data[k]);
       });
       // Bulk replace bypasses the per-record outbox — queue restored data for upload.
@@ -418,6 +433,11 @@ function handleAction(action, el) {
     case 'open-rental': {
       const id = el.dataset.id;
       if (id) openRentalDetail(id);
+      break;
+    }
+    case 'open-booking': {
+      const id = el.dataset.id;
+      if (id) openBookingDetail(id);
       break;
     }
     case 'new-motor':

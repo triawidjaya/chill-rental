@@ -422,8 +422,8 @@ function statusBadge(s) {
 }
 
 function actionBadgeClass(a) {
-  if (a === 'create' || a === 'check-in' || a === 'seed') return 'badge--success';
-  if (a === 'delete' || a === 'cancel' || a === 'reset-all' || a === 'login-fail') return 'badge--danger';
+  if (a === 'create' || a === 'check-in' || a === 'seed' || a === 'booking-confirm' || a === 'booking-checked-in') return 'badge--success';
+  if (a === 'delete' || a === 'cancel' || a === 'reset-all' || a === 'login-fail' || a === 'booking-reject' || a === 'booking-cancel') return 'badge--danger';
   if (a === 'update') return 'badge--warning';
   return '';
 }

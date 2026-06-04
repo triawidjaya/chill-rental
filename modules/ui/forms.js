@@ -18,6 +18,7 @@ import {
   buildOwnerReturned, buildOwnerSettlement,
 } from '../receipts.js';
 import { recommendMotorOrder } from '../allocation.js';
+import { BookingManager } from '../booking.js';
 
 // Build the <option> list for the motor picker, ordered by fair-allocation
 // recommendation (category priority → least-recently-rented). The top option is
@@ -32,7 +33,9 @@ export function motorOptionsHtml(motors) {
 }
 
 // ---------- NEW RENTAL ----------
-export function openRentalForm() {
+// `prefill` (optional) converts a confirmed online booking into a check-in:
+//   { bookingId, bookingCode, guestName, wa, email, passportNo, finishDate, ccClass, surfrack }
+export function openRentalForm(prefill = null) {
   const motorsAvail = MotorManager.available();
   if (motorsAvail.length === 0) {
     Toast.error(t('err_motor_unavailable'));
@@ -216,6 +219,36 @@ export function openRentalForm() {
   };
   ['#f-start', '#f-finish'].forEach(s => $(s).addEventListener('input', recalc));
 
+  // ----- Prefill: converting a confirmed booking into a check-in -----
+  if (prefill) {
+    if (prefill.guestName)  $('#f-guest').value = prefill.guestName;
+    if (prefill.wa)         $('#f-wa').value = prefill.wa;
+    if (prefill.email)      $('#f-email').value = prefill.email;
+    if (prefill.passportNo) $('#f-passport').value = prefill.passportNo;
+    // Booking dates are estimates; the real start is "now" (form default). Only the
+    // estimated end is carried over (11:00 reflects the cut-off rule).
+    if (prefill.finishDate) $('#f-finish').value = `${prefill.finishDate}T11:00`;
+
+    // Narrow the motor list to the booked class / surfrack when those buttons exist.
+    if (prefill.ccClass) {
+      const ccBtn = body.querySelector(`#filt-cc [data-cc="${prefill.ccClass}"]`);
+      if (ccBtn) ccBtn.click();
+    }
+    if (prefill.surfrack === true || prefill.surfrack === false) {
+      const srBtn = body.querySelector(`#filt-sr [data-sr="${prefill.surfrack ? 'true' : 'false'}"]`);
+      if (srBtn) srBtn.click();
+    }
+
+    if (prefill.bookingCode) {
+      const banner = document.createElement('div');
+      banner.className = 'card';
+      banner.style.cssText = 'background:var(--brand-soft);color:var(--brand-soft-text);padding:10px;font-size:12px;font-weight:600;margin-bottom:12px';
+      banner.textContent = `📲 ${t('booking_from_online') || 'From online booking'} ${prefill.bookingCode}`;
+      body.insertBefore(banner, body.firstChild);
+    }
+    recalc();
+  }
+
   // Simple email validation
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -248,7 +281,11 @@ export function openRentalForm() {
     };
 
     try {
-      RentalManager.checkIn(data);
+      const rental = RentalManager.checkIn(data);
+      // If this check-in came from a confirmed online booking, link & close it.
+      if (prefill?.bookingId && rental?.id) {
+        try { BookingManager.markCheckedIn(prefill.bookingId, rental.id); } catch (_) {}
+      }
       Modal.close();
       Toast.success(t('toast_rental_created', { name: guestName }));
       window.dispatchEvent(new CustomEvent('route:refresh'));

@@ -26,6 +26,7 @@ const TABLE_BY_KEY = {
   damages:  'damages',
   staff:    'staff',
   auditLog: 'audit_log',
+  bookings: 'bookings',
 };
 const TABLES = SYNCED_KEYS.map(key => ({ key, table: TABLE_BY_KEY[key] }));
 
