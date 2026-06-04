@@ -17,6 +17,19 @@ import {
   buildGuestCheckin, buildGuestInvoice,
   buildOwnerReturned, buildOwnerSettlement,
 } from '../receipts.js';
+import { recommendMotorOrder } from '../allocation.js';
+
+// Build the <option> list for the motor picker, ordered by fair-allocation
+// recommendation (category priority → least-recently-rented). The top option is
+// marked "⭐" as a SOFT suggestion — staff can still pick any motor.
+export function motorOptionsHtml(motors) {
+  const ordered = recommendMotorOrder(motors, RentalManager.list());
+  return ordered.map((m, i) => `
+            <option value="${m.id}" data-price="${m.pricePerDay}" data-pto="${m.payToOwnerPerDay || 0}" data-cc="${escapeHTML(m.cc)}" data-sr="${m.hasSurfrack ? 'true' : 'false'}">
+              ${i === 0 ? '⭐ ' : ''}${escapeHTML(m.plate)} — ${escapeHTML(m.description)}${m.hasSurfrack ? ' 🏄' : ''}${m.phoneHolder ? ' 📱' : ''}${m.gps ? ' 📍' : ''} (${escapeHTML(m.ownerName)})
+            </option>
+          `).join('');
+}
 
 // ---------- NEW RENTAL ----------
 export function openRentalForm() {
@@ -75,13 +88,10 @@ export function openRentalForm() {
         <label class="field__label required" for="f-motor">${t('form_vehicle')}</label>
         <select id="f-motor" class="select" required>
           <option value="">${t('form_vehicle_placeholder')}</option>
-          ${motorsAvail.map(m => `
-            <option value="${m.id}" data-price="${m.pricePerDay}" data-pto="${m.payToOwnerPerDay || 0}" data-cc="${escapeHTML(m.cc)}" data-sr="${m.hasSurfrack ? 'true' : 'false'}">
-              ${escapeHTML(m.plate)} — ${escapeHTML(m.description)}${m.hasSurfrack ? ' 🏄' : ''}${m.phoneHolder ? ' 📱' : ''}${m.gps ? ' 📍' : ''} (${escapeHTML(m.ownerName)})
-            </option>
-          `).join('')}
+          ${motorOptionsHtml(motorsAvail)}
         </select>
         <span class="field__hint" id="motor-count">${motorsAvail.length} ${t('form_available_count')}</span>
+        <span class="field__hint">⭐ ${t('form_recommended_hint')}</span>
       </div>
 
       <!-- Selected motor info (read-only) -->
@@ -157,11 +167,7 @@ export function openRentalForm() {
 
   const applyFilter = () => {
     const filtered = MotorManager.byCcAndSurfrack(filtCc, filtSr);
-    motorSel.innerHTML = '<option value="">' + t('form_vehicle_placeholder') + '</option>' + filtered.map(m => `
-      <option value="${m.id}" data-price="${m.pricePerDay}" data-pto="${m.payToOwnerPerDay || 0}" data-cc="${escapeHTML(m.cc)}" data-sr="${m.hasSurfrack ? 'true' : 'false'}">
-        ${escapeHTML(m.plate)} — ${escapeHTML(m.description)}${m.hasSurfrack ? ' 🏄' : ''}${m.phoneHolder ? ' 📱' : ''}${m.gps ? ' 📍' : ''} (${escapeHTML(m.ownerName)})
-      </option>
-    `).join('');
+    motorSel.innerHTML = '<option value="">' + t('form_vehicle_placeholder') + '</option>' + motorOptionsHtml(filtered);
     motorCount.textContent = `${filtered.length} ${t('form_available_count')}`;
     motorSel.value = '';
     motorInfo.style.display = 'none';
