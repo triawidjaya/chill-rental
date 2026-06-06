@@ -35,6 +35,12 @@ export const StaffManager = {
     return this.list().filter(s => s.active !== false);
   },
 
+  // How many ACTIVE managers exist. Used to protect the system from losing its
+  // last administrator (see remove/update guards + SessionManager.needsRecovery).
+  activeManagerCount() {
+    return this.list().filter(s => s.role === 'manager' && s.active !== false).length;
+  },
+
   // For the dropdown: list names in uppercase (matching the existing CSV convention)
   optionsForDropdown() {
     return this.active()
@@ -84,6 +90,16 @@ export const StaffManager = {
       patch.name = patch.name.trim();
     }
 
+    // Never demote or deactivate the system's last active manager — that would
+    // drop everyone into the recovery screen.
+    const demoting     = patch.role !== undefined && patch.role !== 'manager';
+    const deactivating = patch.active === false;
+    if ((demoting || deactivating)
+        && before.role === 'manager' && before.active !== false
+        && this.activeManagerCount() <= 1) {
+      throw new Error(t('err_staff_last_manager'));
+    }
+
     state.update('staff', id, patch);
     const after = this.get(id);
     AuditManager.logUpdate({
@@ -98,6 +114,11 @@ export const StaffManager = {
 
   remove(id) {
     const before = this.get(id);
+    // Don't delete the last active manager — the system would have no admin.
+    if (before && before.role === 'manager' && before.active !== false
+        && this.activeManagerCount() <= 1) {
+      throw new Error(t('err_staff_last_manager'));
+    }
     state.remove('staff', id);
     AuditManager.log({
       entity: AuditEntities.SYSTEM,

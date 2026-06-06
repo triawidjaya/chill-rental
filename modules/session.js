@@ -104,6 +104,10 @@ export const SessionManager = {
         });
         return { ok: false, reason: 'wrong_pin' };
       }
+    } else if (this.roleRequiresPin(s.role)) {
+      // Elevated role (manager) with no PIN yet — passwordless login is not
+      // allowed. The UI must force a PIN setup before granting access.
+      return { ok: false, reason: 'pin_setup_required' };
     }
 
     this._setSession(s); // set BEFORE logging so the actor is the logged-in user
@@ -133,6 +137,10 @@ export const SessionManager = {
 
   // ---- Permission gating ----
   rankOf(role) { return ROLE_RANK[role] || 0; },
+
+  // Roles that must authenticate with a PIN (no passwordless login). Decision:
+  // manager and up. Admin/staff may remain passwordless during the migration.
+  roleRequiresPin(role) { return this.rankOf(role) >= ROLE_RANK.manager; },
 
   can(action, role = this.current()?.role) {
     const need = ACTION_MIN_RANK[action] || 1;

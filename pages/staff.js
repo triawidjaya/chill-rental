@@ -112,6 +112,15 @@ export function setupStaffPage(rerender) {
 export function openStaffForm(staffId = null) {
   const s = staffId ? StaffManager.get(staffId) : null;
 
+  // Deletion guards: you can't delete your own account, nor the last active
+  // manager. Hide the Delete button and show why (the model also enforces this).
+  const isSelf = !!(s && SessionManager.current()?.staffId === s.id);
+  const isLastManager = !!(s && s.role === 'manager' && s.active !== false
+                           && StaffManager.activeManagerCount() <= 1);
+  const blockDelete = isSelf || isLastManager;
+  const deleteNote = isSelf ? t('hint_staff_no_self_delete')
+                   : isLastManager ? t('hint_staff_last_manager') : '';
+
   const body = document.createElement('div');
   body.innerHTML = `
     <div class="stack" style="gap:14px">
@@ -159,7 +168,8 @@ export function openStaffForm(staffId = null) {
   const footer = document.createElement('div');
   footer.innerHTML = `
     <button class="btn btn--ghost" data-close>${t('btn_cancel')}</button>
-    ${s ? `<button class="btn btn--danger" id="btn-del-staff">${t('btn_delete')}</button>` : ''}
+    ${s && !blockDelete ? `<button class="btn btn--danger" id="btn-del-staff">${t('btn_delete')}</button>` : ''}
+    ${s && blockDelete ? `<span class="muted" style="font-size:12px;align-self:center">${deleteNote}</span>` : ''}
     <button class="btn" id="btn-save-staff">${t('btn_save')}</button>
   `;
 
@@ -172,6 +182,9 @@ export function openStaffForm(staffId = null) {
       active: body.querySelector('#s-active').value === 'true',
       notes: body.querySelector('#s-notes').value,
     };
+    if (s && isSelf && data.active === false) {
+      return Toast.error(t('err_staff_self_deactivate'));
+    }
     try {
       if (s) StaffManager.update(s.id, data);
       else StaffManager.create(data);
@@ -186,7 +199,7 @@ export function openStaffForm(staffId = null) {
   if (s) {
     document.getElementById('btn-set-pin')?.addEventListener('click', () => openPinDialog(s));
 
-    document.getElementById('btn-del-staff').addEventListener('click', async () => {
+    document.getElementById('btn-del-staff')?.addEventListener('click', async () => {
       const ok = await Modal.confirm({
         title: t('confirm_staff_delete_title'),
         message: t('confirm_staff_delete_msg', { name: s.name }),
@@ -194,7 +207,11 @@ export function openStaffForm(staffId = null) {
         confirmText: t('btn_delete'),
       });
       if (ok) {
-        StaffManager.remove(s.id);
+        try {
+          StaffManager.remove(s.id);
+        } catch (e) {
+          return Toast.error(e.message);
+        }
         Modal.close();
         Toast.success(t('toast_staff_deleted'));
         window.dispatchEvent(new CustomEvent('route:refresh'));

@@ -7,6 +7,7 @@ import { state } from './state.js';
 import { uid } from './utils.js';
 import { MotorManager } from './motors.js';
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
+import { t } from './i18n.js';
 
 const ownerLabel = (o) => o ? `${o.name} (${o.type || '-'})` : '(unknown)';
 
@@ -60,6 +61,13 @@ export const OwnerManager = {
 
   remove(id) {
     const before = this.get(id);
+    // Don't delete an owner who still has motors: those motors' ownerId would
+    // dangle (the owner picker can't reselect a deleted owner, silently nulling
+    // the link on the next motor edit). Reassign or remove the motors first.
+    const motors = MotorManager.byOwner(id);
+    if (motors.length > 0) {
+      throw new Error(t('err_owner_has_motors', { n: motors.length }));
+    }
     state.remove('owners', id);
     AuditManager.log({
       entity: AuditEntities.OWNER, entityId: id,

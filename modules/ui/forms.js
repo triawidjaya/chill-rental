@@ -1453,10 +1453,15 @@ export function openOwnerForm(ownerId = null) {
     </div>
   `;
 
+  // An owner with motors still assigned must not be deletable — the motors'
+  // ownerId would dangle. Show a muted note instead of the Delete button.
+  const ownerMotorCount = o ? MotorManager.byOwner(o.id).length : 0;
+  const ownerHasMotors = ownerMotorCount > 0;
   const footer = document.createElement('div');
   footer.innerHTML = `
     <button class="btn btn--ghost" data-close>${t('btn_cancel')}</button>
-    ${o ? `<button class="btn btn--danger" id="btn-del-owner">${t('btn_delete')}</button>` : ''}
+    ${o && !ownerHasMotors ? `<button class="btn btn--danger" id="btn-del-owner">${t('btn_delete')}</button>` : ''}
+    ${ownerHasMotors ? `<span class="muted" style="font-size:12px;align-self:center">${t('hint_owner_has_motors', { n: ownerMotorCount })}</span>` : ''}
     <button class="btn" id="btn-save-owner">${t('btn_save')}</button>
   `;
 
@@ -1477,7 +1482,7 @@ export function openOwnerForm(ownerId = null) {
     window.dispatchEvent(new CustomEvent('route:refresh'));
   });
 
-  if (o) {
+  if (o && !ownerHasMotors) {
     document.getElementById('btn-del-owner').addEventListener('click', async () => {
       const ok = await Modal.confirm({
         title: t('confirm_delete_owner_title'),

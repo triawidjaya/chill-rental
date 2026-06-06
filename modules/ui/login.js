@@ -209,7 +209,7 @@ function renderBootstrap() {
         <input id="bs-name" class="input" placeholder="${t('form_staff_name_placeholder')}" autocomplete="off" />
       </div>
       <div class="field">
-        <label class="field__label" for="bs-pin">${t('auth_pin_optional')}</label>
+        <label class="field__label required" for="bs-pin">${t('auth_pin_required')}</label>
         <input id="bs-pin" class="input" type="password" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" />
         <span class="field__hint">${t('form_staff_pin_hint')}</span>
       </div>
@@ -230,11 +230,12 @@ function renderBootstrap() {
     const pinVal = pin.value;
     err.textContent = '';
     if (!name) { err.textContent = t('auth_err_name'); return; }
-    if (pinVal && !isValidPinFormat(pinVal)) { err.textContent = t('pin_err_format'); return; }
+    if (!pinVal) { err.textContent = t('auth_err_pin_required'); return; }
+    if (!isValidPinFormat(pinVal)) { err.textContent = t('pin_err_format'); return; }
     try {
       const staff = StaffManager.create({ name, role: 'manager', active: true });
-      if (pinVal) await SessionManager.setPin(staff.id, pinVal);
-      const res = await SessionManager.login(staff.id, pinVal || undefined);
+      await SessionManager.setPin(staff.id, pinVal);
+      const res = await SessionManager.login(staff.id, pinVal);
       if (res.ok) done();
       else err.textContent = t('auth_err_generic');
     } catch (e) {
@@ -261,9 +262,9 @@ function renderRecover() {
         </select>
       </div>
       <div class="field">
-        <label class="field__label" for="rc-pin">${t('auth_pin_optional')}</label>
+        <label class="field__label required" for="rc-pin">${t('auth_pin_required')}</label>
         <input id="rc-pin" class="input" type="password" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" />
-        <span class="field__hint">${t('form_staff_pin_hint')}</span>
+        <span class="field__hint">${t('auth_recover_pin_hint')}</span>
       </div>
       <p id="rc-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
       <button class="btn btn--block" id="rc-go">${t('auth_promote_login')}</button>
@@ -281,12 +282,18 @@ function renderRecover() {
     const pinVal = pin.value;
     err.textContent = '';
     if (!staffId) { err.textContent = t('auth_err_generic'); return; }
-    if (pinVal && !isValidPinFormat(pinVal)) { err.textContent = t('pin_err_format'); return; }
+    // Manager requires a PIN. If the chosen staff already has one, it
+    // authenticates; otherwise they set a new one here.
+    const target = StaffManager.get(staffId);
+    const targetHasPin = SessionManager.hasPin(target);
+    if (!pinVal) { err.textContent = t('auth_err_pin_required'); return; }
+    if (!targetHasPin && !isValidPinFormat(pinVal)) { err.textContent = t('pin_err_format'); return; }
     try {
       StaffManager.update(staffId, { role: 'manager' });   // promote
-      if (pinVal) await SessionManager.setPin(staffId, pinVal);
-      const res = await SessionManager.login(staffId, pinVal || undefined);
+      if (!targetHasPin) await SessionManager.setPin(staffId, pinVal);
+      const res = await SessionManager.login(staffId, pinVal);
       if (res.ok) done();
+      else if (res.reason === 'wrong_pin') err.textContent = t('auth_err_wrong_pin');
       else err.textContent = t('auth_err_generic');
     } catch (e) {
       err.textContent = e.message || t('auth_err_generic');
@@ -323,6 +330,7 @@ function renderStaffPicker() {
       const s = StaffManager.get(btn.dataset.staff);
       if (!s) return;
       if (SessionManager.hasPin(s)) renderPinEntry(s);
+      else if (SessionManager.roleRequiresPin(s.role)) renderSetPinFirst(s);
       else loginPasswordless(s);
     });
   });
@@ -335,6 +343,48 @@ async function loginPasswordless(staff) {
     sessionStorage.setItem('pin_nudge', '1');
     done();
   }
+}
+
+// ---- Force a PIN for an elevated role (manager) that has none yet ----
+// Triggered from the staff picker. The legit manager sets their PIN here and is
+// logged straight in — no permanent lockout, but no passwordless manager either.
+function renderSetPinFirst(staff) {
+  const r = root();
+  r.innerHTML = shell(`
+    <button class="auth-back" id="sp-back">← ${t('btn_back')}</button>
+    <h2 class="auth-title">${t('auth_hello', { name: escapeText(staff.name) })}</h2>
+    <p class="auth-lede">${t('auth_set_pin_required')}</p>
+    <div class="stack" style="gap:12px">
+      <input id="sp-1" class="input auth-pin-input" type="password" inputmode="numeric"
+             maxlength="6" placeholder="${t('pin_new')}" autocomplete="off" />
+      <input id="sp-2" class="input auth-pin-input" type="password" inputmode="numeric"
+             maxlength="6" placeholder="${t('pin_confirm')}" autocomplete="off" />
+      <p id="sp-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
+      <button class="btn btn--block" id="sp-go">${t('btn_save')}</button>
+    </div>
+  `);
+
+  const p1 = r.querySelector('#sp-1');
+  const p2 = r.querySelector('#sp-2');
+  const err = r.querySelector('#sp-err');
+  [p1, p2].forEach(inp => inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, ''); }));
+  r.querySelector('#sp-back').addEventListener('click', renderStaffPicker);
+  p2.addEventListener('keydown', (e) => { if (e.key === 'Enter') r.querySelector('#sp-go').click(); });
+  setTimeout(() => p1.focus(), 60);
+
+  r.querySelector('#sp-go').addEventListener('click', async () => {
+    err.textContent = '';
+    if (!isValidPinFormat(p1.value)) { err.textContent = t('pin_err_format'); return; }
+    if (p1.value !== p2.value)       { err.textContent = t('pin_err_mismatch'); return; }
+    try {
+      await SessionManager.setPin(staff.id, p1.value);
+      const res = await SessionManager.login(staff.id, p1.value);
+      if (res.ok) done();
+      else err.textContent = t('auth_err_generic');
+    } catch (e) {
+      err.textContent = e.message || t('auth_err_generic');
+    }
+  });
 }
 
 // ---- PIN entry for a chosen staff ----
