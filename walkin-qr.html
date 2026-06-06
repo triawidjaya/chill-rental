@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PIPES HOSTEL — QR Walk-in (Resepsi)</title>
+  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;🏍️&lt;/text&gt;&lt;/svg&gt;" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --ink:#1a1612; --muted:#5a544e; --amber:#e8a048; --cream:#f7f4ef;
+            --green:#3f9b62; --red:#c2553d; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--cream); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+           min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { background:#fff; border:1.5px solid var(--amber); border-radius:24px; padding:32px 28px;
+            max-width:420px; width:100%; text-align:center; box-shadow:0 14px 36px rgba(26,22,18,.10); }
+    h1 { font-family:'Manrope',sans-serif; font-weight:800; font-size:26px; margin:0; letter-spacing:.01em; }
+    .sub { color:var(--muted); font-size:14px; margin:6px 0 22px; }
+    #qr { display:inline-block; padding:14px; background:#fff; border-radius:16px; min-height:130px; }
+    #qr svg { display:block; width:230px; height:230px; }
+    .ttl { font-family:'Manrope',sans-serif; font-weight:800; font-size:20px; margin:18px 0 2px; }
+    .ttl small { font-weight:600; color:var(--muted); font-size:13px; }
+    .hint { color:var(--muted); font-size:13px; margin:0 0 18px; line-height:1.5; }
+    .btn { font:inherit; font-weight:700; background:var(--amber); color:#1a1209;
+           border:none; border-radius:999px; padding:12px 28px; cursor:pointer; width:100%; }
+    .btn:disabled { opacity:.55; cursor:default; }
+    .status { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600;
+              margin-top:16px; color:var(--muted); }
+    .dot { width:9px; height:9px; border-radius:50%; background:var(--muted); }
+    .dot.ok  { background:var(--green); }
+    .dot.bad { background:var(--red); }
+    .msg { font-size:14px; color:var(--red); margin:10px 0 0; min-height:18px; line-height:1.45; }
+    .expired { color:var(--red); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>PIPES HOSTEL</h1>
+    <p class="sub">QR Walk-in</p>
+
+    <div id="qr" aria-label="Walk-in QR code"></div>
+
+    <p class="ttl" id="ttl" hidden>Sisa <span id="count">--:--</span> <small>(berlaku 30 menit)</small></p>
+    <p class="hint">QR berputar otomatis</p>
+
+    <button class="btn" id="btn">🔄 Buat / Refresh QR</button>
+
+    <p class="msg" id="msg"></p>
+    <span class="status"><span class="dot" id="dot"></span><span id="statusText">Memeriksa sesi…</span></span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const setStatus = (text, cls) => { $('statusText').textContent = text; $('dot').className = 'dot' + (cls ? ' ' + cls : ''); };
+    const setMsg = (m) => { $('msg').textContent = m || ''; };
+
+    // Where the guest form lives — same folder as this page, token in the #hash.
+    const bookingUrl = (token) =>
+      new URL('booking.html', location.href).href + '#wt=' + encodeURIComponent(token);
+
+    // ---- Supabase client: same anon config + same auth storageKey as the main
+    //      app, so a reception phone already signed into index.html shares the
+    //      authenticated session here (no separate login). -----------------
+    let client = null;
+    async function getClient() {
+      if (client) return client;
+      const cfg = await import('./modules/config.js').catch(() => null);
+      if (!cfg || !cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || String(cfg.SUPABASE_URL).includes('YOUR-PROJECT')) {
+        throw new Error('config');
+      }
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      client = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, storageKey: 'chill_rental_auth' },
+      });
+      return client;
+    }
+
+    function renderQR(url) {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        $('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 1 });
+      } catch (_) {
+        $('qr').textContent = 'QR gagal dirender.';
+      }
+    }
+
+    // ---- Countdown + auto-refresh -------------------------------------
+    let expMs = 0, tick = null, autoTimer = null, refreshing = false;
+
+    function startCountdown() {
+      clearInterval(tick);
+      $('ttl').hidden = false;
+      tick = setInterval(() => {
+        const remaining = expMs - Date.now();
+        if (remaining <= 0) {
+          $('count').textContent = '00:00';
+          $('count').parentElement.classList.add('expired');
+          setMsg('Token kedaluwarsa — tekan Refresh.');
+          clearInterval(tick);
+          return;
+        }
+        const s = Math.floor(remaining / 1000);
+        $('count').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+        $('count').parentElement.classList.remove('expired');
+      }, 1000);
+    }
+
+    async function refresh() {
+      if (refreshing) return;
+      refreshing = true;
+      $('btn').disabled = true;
+      setMsg('');
+      try {
+        const c = await getClient();
+        const { data: { session } } = await c.auth.getSession();
+        if (!session) {
+          setStatus('Belum login', 'bad');
+          setMsg('Buka & login di app utama (index.html) dulu di HP ini, lalu refresh.');
+          $('qr').textContent = '🔒';
+          return;
+        }
+        const { data: token, error } = await c.rpc('mint_walkin_token', { ttl_seconds: 1800 });
+        if (error) throw error;
+
+        renderQR(bookingUrl(token));
+        // token = "<exp_epoch_seconds>.<sig>"
+        const exp = parseInt(String(token).split('.')[0], 10);
+        expMs = (Number.isFinite(exp) ? exp : (Date.now() / 1000 + 1800)) * 1000;
+        startCountdown();
+        setStatus('Aktif — tersambung', 'ok');
+
+        // Auto-refresh ~5 min before the 30-min TTL lapses.
+        clearTimeout(autoTimer);
+        autoTimer = setTimeout(refresh, Math.max(60_000, expMs - Date.now() - 5 * 60_000));
+      } catch (e) {
+        if (e && e.message === 'config') {
+          setStatus('Belum dikonfigurasi', 'bad');
+          setMsg('modules/config.js belum diisi (Supabase URL/anon key).');
+        } else {
+          setStatus('Gagal', 'bad');
+          setMsg('Gagal membuat token. Cek koneksi & coba lagi. (' + (e?.message || e) + ')');
+        }
+        $('qr').textContent = '⚠️';
+      } finally {
+        refreshing = false;
+        $('btn').disabled = false;
+      }
+    }
+
+    $('btn').addEventListener('click', refresh);
+    refresh();   // auto-mint on open
+  </script>
+</body>
+</html>

@@ -29,6 +29,15 @@ const esc = (s) => String(s == null ? '' : s)
 
 const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
+// Walk-in channel token. Present only when the form was opened from the
+// reception QR (booking.html#wt=<token>). Kept in the #hash (not the query
+// string) so it never leaks to server logs / Referer. null for the public
+// online link — the server then records the booking as 'online'.
+const walkinToken = () => {
+  const m = String(location.hash || '').match(/(?:^|[#&])wt=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+};
+
 function configured() {
   return !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !SUPABASE_URL.includes('YOUR-PROJECT');
 }
@@ -221,6 +230,7 @@ async function submitBooking({ $, getSurfrack }) {
     startDate, finishDate,
     agreedTermsVersion: consent.agreedTermsVersion,
     agreedAt: consent.agreedAt,
+    walkinToken: walkinToken(),   // null from the public link -> server records 'online'
   };
 
   try {

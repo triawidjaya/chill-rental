@@ -87,7 +87,15 @@ export function renderBooking() {
     </div>
 
     <div class="toolbar toolbar--stacked">
-      <div class="filter-row" id="bk-filters" style="flex-wrap:wrap;gap:8px">${filterBtns}</div>
+      <div class="filter-row" id="bk-filters" style="flex-wrap:wrap;gap:8px">
+        <a class="btn btn--sm" href="walkin-qr.html" target="_blank" rel="noopener"
+           title="${t('booking_walkin_qr_hint') || 'Show the rotating walk-in QR on the reception screen'}"
+           style="background:var(--brand-soft);color:var(--brand-soft-text);border-color:var(--brand);font-weight:700">
+          📲 ${t('booking_walkin_qr') || 'QR Walk-in'}
+        </a>
+        <span aria-hidden="true" style="width:1px;align-self:stretch;background:var(--border-subtle);margin:0 2px"></span>
+        ${filterBtns}
+      </div>
     </div>
 
     <div id="bk-list">
@@ -222,6 +230,9 @@ export function openBookingDetail(id) {
       Modal.close();
       openRentalForm({
         bookingId: b.id, bookingCode: b.code,
+        // Channel decided server-side at submit (online link vs reception QR).
+        // Older bookings have no channel → forms.js falls back to legacy logic.
+        bookingChannel: b.channel,
         guestName: b.guestName, wa: b.wa, email: b.email, passportNo: b.passportNo,
         finishDate: b.finishDate, ccClass: b.ccClass, surfrack: b.surfrack,
       });

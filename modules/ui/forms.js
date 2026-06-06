@@ -300,10 +300,12 @@ export function openRentalForm(prefill = null) {
       motorId, startDate, finishDate,
       staffGivesKey,
       notes,
-      // Origination channel, derived from the flow (zero staff input): a check-in
-      // converted from a confirmed online booking carries prefill.bookingId → 'online';
-      // the plain manual "Rental Baru" form has no prefill → 'walk-in'.
-      source: prefill?.bookingId ? 'online' : 'walk-in',
+      // Origination channel, derived from the flow (zero staff input). Prefer the
+      // server-decided booking channel (online link vs reception walk-in QR); fall
+      // back to legacy logic for older bookings: a check-in from a booking with no
+      // channel → 'online'; the plain manual "Rental Baru" form (no prefill) → 'walk-in'.
+      source: prefill?.bookingChannel
+              ?? (prefill?.bookingId ? 'online' : 'walk-in'),
       // pricePerDay & payToOwner: LEAVE undefined — checkIn auto-fills from the motor
       // paymentMethod: LEAVE as default — it will be set at check-out
     };
