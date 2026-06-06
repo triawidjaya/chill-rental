@@ -124,6 +124,12 @@ export const MotorManager = {
 
   remove(id) {
     const before = this.get(id);
+    // Never delete a motor mid-rental: the active rental would dangle and its
+    // check-out (which sets the motor back to available) would fail with
+    // 'motor not found'. Retire it via status instead, or check the guest out first.
+    if (before && before.status === MotorStatus.RENTED) {
+      throw new Error(t('err_motor_rented_delete'));
+    }
     state.remove('motors', id);
     AuditManager.log({
       entity: AuditEntities.MOTOR, entityId: id,

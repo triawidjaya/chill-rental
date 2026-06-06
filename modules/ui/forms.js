@@ -4,7 +4,7 @@
 // =============================================================
 
 import { Modal, Toast } from './notify.js';
-import { MotorManager } from '../motors.js';
+import { MotorManager, MotorStatus } from '../motors.js';
 import { OwnerManager } from '../owners.js';
 import { StaffManager } from '../staff.js';
 import { RentalManager, renderRentalBadge, getRentalGrandTotal, getOwnerPayout } from '../rentals.js';
@@ -1343,10 +1343,14 @@ export function openMotorForm(motorId = null) {
     </div>
   `;
 
+  // A rented motor must not be deletable — its active rental would dangle and
+  // break check-out. Show a muted note instead of the Delete button.
+  const isRented = m?.status === MotorStatus.RENTED;
   const footer = document.createElement('div');
   footer.innerHTML = `
     <button class="btn btn--ghost" data-close>${t('btn_cancel')}</button>
-    ${m ? `<button class="btn btn--danger" id="btn-delete-motor">${t('btn_delete')}</button>` : ''}
+    ${m && !isRented ? `<button class="btn btn--danger" id="btn-delete-motor">${t('btn_delete')}</button>` : ''}
+    ${isRented ? `<span class="muted" style="font-size:12px;align-self:center">${t('hint_motor_rented_no_delete')}</span>` : ''}
     <button class="btn" id="btn-save-motor">${t('btn_save')}</button>
   `;
 
@@ -1397,7 +1401,7 @@ export function openMotorForm(motorId = null) {
     }
   });
 
-  if (m) {
+  if (m && !isRented) {
     document.getElementById('btn-delete-motor').addEventListener('click', async () => {
       const ok = await Modal.confirm({
         title: t('confirm_delete_motor_title'),
