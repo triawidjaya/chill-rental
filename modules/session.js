@@ -26,6 +26,7 @@ const ACTION_MIN_RANK = {
   'rental.delete':  2,
   'rental.cancel':  2,
   'rental.correct': 2,
+  'rental.editFinishTime': 2,
   'owner.settle':   2,
   'motor.edit':     2,
   'owner.edit':     2,

@@ -625,6 +625,9 @@ const strings = {
     co_reason_placeholder: 'Contoh: Motor mogok, tamu sakit, owner minta motor balik...',
     co_cutoff_before: '✓ Kembali sebelum 11:00 — tanggal kembali <strong>tidak</strong> dihitung',
     co_cutoff_after: '⚠ Kembali setelah 11:00 — tanggal kembali <strong>ikut</strong> dihitung',
+    co_finish_grace_hint: '✏ Masih bisa sesuaikan jam (tanggal hari ini) sampai ${time}; setelah itu hanya admin.',
+    co_finish_locked_hint: '🔒 Jam kembali = waktu sekarang. Sudah lewat ${time} — hanya admin yang bisa mengubah.',
+    err_checkout_time_locked: 'Jam check-out terkunci (sudah lewat ${time}). Minta admin untuk menyesuaikan jam.',
 
     // Passport hold modal
     passport_toast_held: 'Passport ${no} dipegang oleh property',
@@ -1396,6 +1399,9 @@ const strings = {
     co_reason_placeholder: 'e.g. Vehicle broke down, guest unwell, owner requested return...',
     co_cutoff_before: '✓ Returned before 11:00 — return date is <strong>not</strong> counted',
     co_cutoff_after: '⚠ Returned after 11:00 — return date <strong>is</strong> counted',
+    co_finish_grace_hint: '✏ You can still adjust the time (today only) until ${time}; after that, admin only.',
+    co_finish_locked_hint: '🔒 Return time = now. Past ${time} — only an admin can change it.',
+    err_checkout_time_locked: 'Check-out time is locked (past ${time}). Ask an admin to adjust it.',
 
     // Passport hold modal
     passport_toast_held: 'Passport ${no} held by property',

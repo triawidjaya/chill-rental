@@ -5,11 +5,12 @@
 // =============================================================
 
 import { state } from './state.js';
-import { uid, daysBetween, calcRentalDays, formatDate, isEstimateExpired } from './utils.js';
+import { uid, daysBetween, calcRentalDays, formatDate, isEstimateExpired, isWithinCheckoutGrace, isSameLocalDay } from './utils.js';
 import { MotorManager, MotorStatus } from './motors.js';
 import { t } from './i18n.js';
 // OwnerManager is no longer imported after R3 (PTO moved to the motor)
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
+import { SessionManager } from './session.js';
 
 const rentalLabel = (r) => r ? `${r.guestName} · ${r.motorPlate || ''}` : '(unknown)';
 
@@ -253,6 +254,24 @@ export const RentalManager = {
 
     // Apply the 11:00 AM cut-off rule
     const days = calcRentalDays(rental.startDate, finish, cutoffHour);
+
+    // Cut-off manipulation guard (R-time): a non-admin (staff) may NOT back-date
+    // the return so it bills FEWER days than "now" would — EXCEPT within the
+    // post-cut-off grace window (default 30 min) and only for a return dated
+    // today. Admins+ (rental.editFinishTime) are exempt. This is the authoritative
+    // check; the UI lock is only a convenience layer on top of it.
+    if (!SessionManager.can('rental.editFinishTime')) {
+      const daysNow = calcRentalDays(rental.startDate, new Date().toISOString(), cutoffHour);
+      if (days < daysNow) {
+        const allowed = isWithinCheckoutGrace(cutoffHour)
+          && isSameLocalDay(new Date(finish), new Date());
+        if (!allowed) {
+          const graceTime = `${String(cutoffHour).padStart(2, '0')}:30`;
+          throw new Error(t('err_checkout_time_locked', { time: graceTime }));
+        }
+      }
+    }
+
     const totalCost = rental.pricePerDay * days;
     // payToOwnerPerDay from the rate stored at check-in
     const ptoPerDay = rental.payToOwnerPerDay != null
@@ -280,10 +299,15 @@ export const RentalManager = {
 
     MotorManager.setStatus(rental.motorId, MotorStatus.AVAILABLE, null);
 
+    // Flag when the recorded return time drifts from the real "now" (manipulation
+    // visibility) — tolerate ±2 min for the minute-precision input + processing lag.
+    const driftMin = Math.round((finishMs - nowMs) / 60000);
+    const timeFlag = Math.abs(driftMin) > 2 ? ` · ⚠ waktu di-set ${driftMin > 0 ? '+' : ''}${driftMin}mnt dari real` : '';
+
     AuditManager.log({
       entity: AuditEntities.RENTAL, entityId: rentalId,
       entityLabel: rentalLabel(rental), action: AuditActions.CHECK_OUT,
-      note: `${days} hari · total ${totalCost.toLocaleString('id-ID')}${newDamage ? ' · ada kerusakan' : ''}${checkoutReason ? ` · alasan: ${checkoutReason}` : ''} · status: returned`,
+      note: `${days} hari · total ${totalCost.toLocaleString('id-ID')}${newDamage ? ' · ada kerusakan' : ''}${checkoutReason ? ` · alasan: ${checkoutReason}` : ''}${timeFlag} · status: returned`,
     });
 
     // Record damage if any

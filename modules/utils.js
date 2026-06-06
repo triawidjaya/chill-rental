@@ -87,6 +87,22 @@ export const isPastCutoffToday = (cutoffHour = 11) => {
 };
 
 /**
+ * Whether "now" is still within the post-cut-off grace window (default: 30 min
+ * after the cut-off). Lets staff fine-tune the check-out time right around the
+ * cut-off without an admin override; past it, the time is locked for non-admins.
+ */
+export const isWithinCheckoutGrace = (cutoffHour = 11, graceMinutes = 30) => {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes() < cutoffHour * 60 + graceMinutes;
+};
+
+/** True when two Date objects fall on the same local calendar day. */
+export const isSameLocalDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+/**
  * Helper: check whether the estimated finishDate has already passed
  */
 export const isEstimateExpired = (estimateISO) => {

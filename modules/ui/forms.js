@@ -8,7 +8,7 @@ import { MotorManager } from '../motors.js';
 import { OwnerManager } from '../owners.js';
 import { StaffManager } from '../staff.js';
 import { RentalManager, renderRentalBadge, getRentalGrandTotal, getOwnerPayout } from '../rentals.js';
-import { formatIDR, daysBetween, calcRentalDays, toISODateTime, escapeHTML, formatDate, attachNumericInput } from '../utils.js';
+import { formatIDR, daysBetween, calcRentalDays, toISODateTime, escapeHTML, formatDate, attachNumericInput, isWithinCheckoutGrace } from '../utils.js';
 import { t } from '../i18n.js';
 import { SessionManager } from '../session.js';
 import { showReceiptModal } from './receipt-modal.js';
@@ -567,7 +567,23 @@ export function openRentalDetail(rentalId) {
           <div class="stack" style="gap:12px">
             <div class="field">
               <label class="field__label" for="co-finish">${t('detail_actual_return')}</label>
-              <input id="co-finish" class="input" type="datetime-local" value="${toISODateTime(new Date())}" />
+              ${(() => {
+                // Non-admins can only adjust the return time inside the post-cut-off
+                // grace window (today, until 11:30); otherwise it is locked to "now".
+                // Authoritative enforcement lives in RentalManager.checkOut().
+                const nowLocal = toISODateTime(new Date());
+                const graceTime = '11:30';
+                if (SessionManager.can('rental.editFinishTime')) {
+                  return `<input id="co-finish" class="input" type="datetime-local" value="${nowLocal}" />`;
+                }
+                if (isWithinCheckoutGrace()) {
+                  const todayStart = `${nowLocal.slice(0, 10)}T00:00`;
+                  return `<input id="co-finish" class="input" type="datetime-local" value="${nowLocal}" min="${todayStart}" max="${nowLocal}" />
+              <span class="field__hint">${t('co_finish_grace_hint', { time: graceTime })}</span>`;
+                }
+                return `<input id="co-finish" class="input" type="datetime-local" value="${nowLocal}" disabled style="opacity:0.65;cursor:not-allowed" />
+              <span class="field__hint">${t('co_finish_locked_hint', { time: graceTime })}</span>`;
+              })()}
               <span class="field__hint" id="co-cutoff-hint">${t('detail_pick_date_hint')}</span>
             </div>
             <div class="card" id="co-calc-card" style="background:var(--bg-subtle);padding:12px">
