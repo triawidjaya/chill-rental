@@ -34,6 +34,14 @@ export const getOwnerPayout = (r) => {
   return (r.payToOwner || 0) + (r.newDamage ? (r.damageCharge || 0) : 0);
 };
 
+// Channel a rental originated from. Auto-derived at check-in (never staff-chosen):
+//   'online'  — converted from a confirmed online booking (carries a bookingId)
+//   'walk-in' — created directly via the manual "Rental Baru" form
+export const RentalSource = {
+  ONLINE: 'online',
+  WALKIN: 'walk-in',
+};
+
 export const RentalStatus = {
   ACTIVE: 'active',
   RETURNED: 'returned',     // R6/R7: motor physically returned, final cost computed
@@ -144,6 +152,7 @@ export const RentalManager = {
     staffGivesKey,
     paymentMethod = '',           // R5: payment method is chosen at check-out, not check-in
     notes = '',
+    source = RentalSource.WALKIN, // origination channel — auto-set by the caller, not staff
   }) {
     const motor = MotorManager.get(motorId);
     if (!motor) throw new Error(t('err_motor_not_found'));
@@ -201,6 +210,7 @@ export const RentalManager = {
       ownerSettled: false,
       ownerSettledAt: null,
       ownerPaid: false,       // backward-compat (to be removed once all UI uses ownerSettled)
+      source,                 // 'online' | 'walk-in' — channel this rental came from
       notes,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -211,7 +221,7 @@ export const RentalManager = {
     AuditManager.log({
       entity: AuditEntities.RENTAL, entityId: rental.id,
       entityLabel: rentalLabel(rental), action: AuditActions.CHECK_IN,
-      note: `start=${rental.startDate}${rental.finishDate ? ` · estimasi=${rental.finishDate}` : ''}`,
+      note: `start=${rental.startDate}${rental.finishDate ? ` · estimasi=${rental.finishDate}` : ''} · via=${rental.source}`,
     });
     return rental;
   },

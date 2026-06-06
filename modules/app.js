@@ -676,6 +676,8 @@ function migrate() {
     if (next.propertyCheckedOut === undefined) { next.propertyCheckedOut = false; changed = true; }
     if (next.passportHeld === undefined)       { next.passportHeld = false;       changed = true; }
     if (next.passportHeldAt === undefined)     { next.passportHeldAt = null;      changed = true; }
+    // Channel tracking: rentals predating online booking are all walk-ins.
+    if (next.source === undefined)             { next.source = 'walk-in';         changed = true; }
 
     if (changed) rentalsChanged = true;
     return next;

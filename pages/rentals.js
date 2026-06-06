@@ -124,7 +124,7 @@ export function renderRentals() {
                 <td>${formatDate(r.actualFinishDate || r.finishDate)}</td>
                 <td>${r.totalDays}</td>
                 <td><strong>${formatIDR(r.totalCost)}</strong></td>
-                <td>${statusBadge(r.status, r)}</td>
+                <td>${statusBadge(r.status, r)} ${sourceBadge(r)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -140,7 +140,7 @@ export function renderRentals() {
                 ${r.status === 'active' ? (r.passportHeld
                   ? '<span class="badge badge--warning" style="font-size:10px">📘</span>'
                   : '<span class="badge" style="font-size:10px">🏠</span>') : ''}
-                ${statusBadge(r.status, r)}
+                ${statusBadge(r.status, r)} ${sourceBadge(r)}
               </div>
               <div class="list-item__sub">${escapeHTML(r.motorPlate)} · ${escapeHTML(r.motorDescription)}</div>
               <div class="muted" style="font-size:12px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${formatDate(r.startDate)} → ${formatDate(r.actualFinishDate || r.finishDate)} · ${r.totalDays} hari</div>
@@ -160,6 +160,13 @@ export function renderRentals() {
       </style>
     `}
   `;
+}
+
+// Origination channel badge — online booking vs walk-in (reads r.source).
+function sourceBadge(r) {
+  return r.source === 'online'
+    ? `<span class="badge badge--info" style="margin-left:6px;font-size:10px">🌐 ${t('page_channel_online')}</span>`
+    : `<span class="badge" style="margin-left:6px;font-size:10px">🚶 ${t('page_channel_walkin')}</span>`;
 }
 
 function statusBadge(status, rental) {

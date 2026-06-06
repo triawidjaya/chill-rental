@@ -613,8 +613,15 @@ const strings = {
     form_edit_vehicle_hint: 'Jika ganti motor, motor lama akan kembali tersedia & motor baru akan jadi "Rented"',
     form_edit_staff_key: 'Staff Beri Kunci',
 
+    // Booking channel (online vs walk-in)
+    page_channel_source: 'Sumber Booking',
+    page_channel_sub: 'online vs walk-in (bln ini)',
+    page_channel_online: 'Online',
+    page_channel_walkin: 'Walk-in',
+
     // Checkout form
     form_pick_staff: '— Pilih staff —',
+    staff_auto_self: 'Otomatis: Anda (akun yang login)',
     co_reason_placeholder: 'Contoh: Motor mogok, tamu sakit, owner minta motor balik...',
     co_cutoff_before: '✓ Kembali sebelum 11:00 — tanggal kembali <strong>tidak</strong> dihitung',
     co_cutoff_after: '⚠ Kembali setelah 11:00 — tanggal kembali <strong>ikut</strong> dihitung',
@@ -1377,8 +1384,15 @@ const strings = {
     form_edit_vehicle_hint: 'Changing vehicle will release the old vehicle and mark the new one as rented',
     form_edit_staff_key: 'Staff Key Handover',
 
+    // Booking channel (online vs walk-in)
+    page_channel_source: 'Booking Source',
+    page_channel_sub: 'online vs walk-in (this month)',
+    page_channel_online: 'Online',
+    page_channel_walkin: 'Walk-in',
+
     // Checkout form
     form_pick_staff: '— Select staff —',
+    staff_auto_self: 'Auto: you (logged-in account)',
     co_reason_placeholder: 'e.g. Vehicle broke down, guest unwell, owner requested return...',
     co_cutoff_before: '✓ Returned before 11:00 — return date is <strong>not</strong> counted',
     co_cutoff_after: '⚠ Returned after 11:00 — return date <strong>is</strong> counted',

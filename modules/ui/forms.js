@@ -32,6 +32,36 @@ export function motorOptionsHtml(motors) {
           `).join('');
 }
 
+// Key-handover staff field for check-in / check-out. The stamp is auto-set to the
+// logged-in user; only managers (rank >= 3) may pick a different staff member.
+// Everyone else gets a disabled select locked to themselves, so it can't be set
+// wrong. With no session (defensive), falls back to a normal pickable dropdown.
+function staffSelectHtml({ id, labelKey }) {
+  const cur = SessionManager.current();
+  const curName = cur?.name || '';
+  const curStamp = curName.toUpperCase();
+  const canPick = !cur || SessionManager.rankOf(cur?.role) >= 3;
+  const options = StaffManager.optionsForDropdown();
+
+  if (canPick) {
+    return `
+        <label class="field__label" for="${id}">${t(labelKey)}</label>
+        <select id="${id}" class="select">
+          <option value="">${t('form_pick_staff')}</option>
+          ${options.map(s => `<option value="${escapeHTML(s.value)}" ${s.value === curStamp ? 'selected' : ''}>${escapeHTML(s.label)}</option>`).join('')}
+        </select>
+        ${options.length === 0 ? `<span class="field__hint" style="color:var(--danger)">⚠ ${t('err_staff_not_found')}</span>` : ''}`;
+  }
+
+  // Non-manager: locked to the logged-in user.
+  return `
+        <label class="field__label" for="${id}">${t(labelKey)}</label>
+        <select id="${id}" class="select" disabled>
+          <option value="${escapeHTML(curStamp)}" selected>${escapeHTML(curName)}</option>
+        </select>
+        <span class="field__hint">${t('staff_auto_self')}</span>`;
+}
+
 // ---------- NEW RENTAL ----------
 // `prefill` (optional) converts a confirmed online booking into a check-in:
 //   { bookingId, bookingCode, guestName, wa, email, passportNo, finishDate, ccClass, surfrack }
@@ -44,7 +74,6 @@ export function openRentalForm(prefill = null) {
 
   // Unique CC values from available motors (for the filter dropdown)
   const ccOptions = [...new Set(motorsAvail.map(m => m.cc).filter(Boolean))];
-  const staffOptions = StaffManager.optionsForDropdown();
 
   const body = document.createElement('div');
   const now = toISODateTime(new Date());
@@ -133,12 +162,7 @@ export function openRentalForm(prefill = null) {
       <!-- ===== Step 4: Additional Details ===== -->
       <div style="font-weight:700;color:var(--brand);font-size:13px;text-transform:uppercase;letter-spacing:0.04em;margin-top:8px">${t('form_step_details')}</div>
       <div class="field">
-        <label class="field__label" for="f-staff">${t('form_staff_key')}</label>
-        <select id="f-staff" class="select">
-          <option value="">— ${t('btn_select') || 'Select'} ${t('nav_staff')} —</option>
-          ${staffOptions.map(s => `<option value="${escapeHTML(s.value)}">${escapeHTML(s.label)}</option>`).join('')}
-        </select>
-        ${staffOptions.length === 0 ? `<span class="field__hint" style="color:var(--danger)">⚠ ${t('err_staff_not_found') || 'Belum ada staf terdaftar'}</span>` : ''}
+        ${staffSelectHtml({ id: 'f-staff', labelKey: 'form_staff_key' })}
       </div>
       <div class="field">
         <label class="field__label" for="f-notes">${t('form_notes')}</label>
@@ -276,6 +300,10 @@ export function openRentalForm(prefill = null) {
       motorId, startDate, finishDate,
       staffGivesKey,
       notes,
+      // Origination channel, derived from the flow (zero staff input): a check-in
+      // converted from a confirmed online booking carries prefill.bookingId → 'online';
+      // the plain manual "Rental Baru" form has no prefill → 'walk-in'.
+      source: prefill?.bookingId ? 'online' : 'walk-in',
       // pricePerDay & payToOwner: LEAVE undefined — checkIn auto-fills from the motor
       // paymentMethod: LEAVE as default — it will be set at check-out
     };
@@ -533,7 +561,6 @@ export function openRentalDetail(rentalId) {
       })()}
 
       ${r.status === 'active' ? (() => {
-        const staffOpts = StaffManager.optionsForDropdown();
         return `
         <div class="card" style="border-color:var(--brand);border-width:2px;padding:14px">
           <div style="font-weight:700;margin-bottom:10px">${t('detail_section_checkout')}</div>
@@ -550,12 +577,7 @@ export function openRentalDetail(rentalId) {
               <div class="row row--between" style="margin-top:6px"><span class="muted">${t('detail_commission')}</span><strong id="co-calc-comm" style="color:var(--success)">—</strong></div>
             </div>
             <div class="field">
-              <label class="field__label" for="co-staff">${t('detail_staff_receive_key')}</label>
-              <select id="co-staff" class="select">
-                <option value="">${t('form_pick_staff')}</option>
-                ${staffOpts.map(s => `<option value="${escapeHTML(s.value)}">${escapeHTML(s.label)}</option>`).join('')}
-              </select>
-              ${staffOpts.length === 0 ? `<span class="field__hint" style="color:var(--danger)">⚠ ${t('err_staff_not_found')}</span>` : ''}
+              ${staffSelectHtml({ id: 'co-staff', labelKey: 'detail_staff_receive_key' })}
             </div>
             ${r.suspectedDamage ? `
               <div class="card" style="background:var(--warning-soft,#fff3cd);border-left:4px solid var(--warning,#d97706);padding:10px;font-size:12px">

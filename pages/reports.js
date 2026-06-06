@@ -12,6 +12,7 @@ export function renderReports() {
   const byOwner = ReportEngine.earningsByOwner(ym);
   const topMotors = ReportEngine.topMotors(10, ym);
   const daily = ReportEngine.rentalsByDay(14);
+  const ch = ReportEngine.channelCounts(ym);
   const monthLabel = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
   const maxOwnerEarn = Math.max(...byOwner.map(o => o.totalEarning), 1);
@@ -52,6 +53,22 @@ export function renderReports() {
           <span class="kpi__label">${t('detail_damage_charge')}</span>
           <span class="kpi__value kpi__value--sm">${formatIDR(ov.damageRecoveryMonth)}</span>
           <span class="kpi__sub">${t('page_from_damages')}</span>
+        </div>
+      </div>
+
+      <!-- Booking channel — online vs walk-in this month (count + share) -->
+      <div class="card span-6">
+        <div class="card__header">
+          <div class="card__title">${t('page_channel_source')}</div>
+          <div class="card__sub">${t('page_period')}: ${monthLabel}</div>
+        </div>
+        <div class="row row--between" style="margin-top:8px">
+          <span>🌐 ${t('page_channel_online')}</span>
+          <strong>${ch.online} (${ch.total ? Math.round(ch.online / ch.total * 100) : 0}%)</strong>
+        </div>
+        <div class="row row--between" style="margin-top:6px">
+          <span>🚶 ${t('page_channel_walkin')}</span>
+          <strong>${ch.walkin} (${ch.total ? Math.round(ch.walkin / ch.total * 100) : 0}%)</strong>
         </div>
       </div>
 

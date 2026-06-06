@@ -63,6 +63,7 @@ function renderActionQueue(queue, pastCutoffToday) {
 
 export function renderDashboard() {
   const ov = ReportEngine.overview();
+  const ch = ReportEngine.channelCounts();
   const activeAll = RentalManager.active();
   const recentActive = activeAll.slice(-5).reverse();
   const byCat = ReportEngine.motorsByCategory();
@@ -113,6 +114,15 @@ export function renderDashboard() {
           <span class="kpi__label">${t('page_passports_held')}</span>
           <span class="kpi__value">${ov.passportsKept}</span>
           <span class="kpi__sub">${t('page_passport_offsite')}</span>
+        </div>
+      </div>
+
+      <!-- Booking channel — online vs walk-in this month (operational count, no money) -->
+      <div class="card span-3">
+        <div class="kpi">
+          <span class="kpi__label">${t('page_channel_source')}</span>
+          <span class="kpi__value">🌐 ${ch.online} · 🚶 ${ch.walkin}</span>
+          <span class="kpi__sub">${t('page_channel_sub')}</span>
         </div>
       </div>
 

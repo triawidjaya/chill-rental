@@ -53,6 +53,15 @@ export const ReportEngine = {
     return out;
   },
 
+  // Online vs walk-in rental counts for one month (default: current month).
+  // Cancelled excluded. walkin = remainder, so it's robust to a missing source.
+  channelCounts(ym = new Date().toISOString().slice(0, 7)) {
+    const list = RentalManager.list().filter(r =>
+      (r.createdAt || '').slice(0, 7) === ym && r.status !== 'cancelled');
+    const online = list.filter(r => r.source === 'online').length;
+    return { online, walkin: list.length - online, total: list.length };
+  },
+
   // Earnings per owner (current month, completed)
   earningsByOwner(yearMonth) {
     const ym = yearMonth || new Date().toISOString().slice(0, 7);
