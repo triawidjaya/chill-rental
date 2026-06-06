@@ -389,6 +389,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Icon-only status/channel chips on their own row directly under the name —
+   keeps the date row below full-width so nothing important gets truncated. */
+.list-item__icons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+}
+.list-item__icons .li-ico {
+  font-size: 14px;
+  line-height: 1;
+}
+/* Date range · days — its own full-width row (ellipsis only as a last resort). */
+.list-item__meta {
+  margin-top: 4px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ===== MODAL ===== */
 .modal-backdrop {
@@ -693,8 +713,9 @@
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: var(--r-pill);
-  background: var(--bg-elev);
-  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 700;
   min-width: 18px;
@@ -702,7 +723,47 @@
 }
 .segmented__opt.is-active .filter-count {
   background: var(--brand);
+  border-color: var(--brand);
   color: var(--text-on-brand);
+}
+/* Count-bearing filter chips: keep the label ellipsizing while the count pill
+   stays fully visible (never clipped by the chip's own overflow:hidden). */
+.segmented--counts .segmented__opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;   /* label left, count right — scannable column */
+  gap: 8px;
+  overflow: visible;
+}
+.segmented--counts .seg-label {
+  flex: 1 1 auto;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.segmented--counts .filter-count {
+  flex-shrink: 0;
+  margin-left: 0;   /* spacing handled by the chip's space-between + gap */
+}
+/* Reset occupies the empty grid slot beside "Completed" — an action, not a
+   filter toggle, so it is centered and reads as a button (border, no count). */
+.segmented--counts .segmented__reset {
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.segmented--counts .segmented__reset:not([disabled]):hover {
+  color: var(--text-primary);
+  background: var(--bg-elev);
+  border-color: var(--border-strong);
+}
+.segmented--counts .segmented__reset[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 @media (max-width: 600px) {
   .filter-group-row {
@@ -812,6 +873,15 @@
   /* 5 chips → 3+2 layout (the last chip is wider) */
   .segmented:has(.segmented__opt:nth-child(5):last-child) .segmented__opt {
     flex-basis: calc(33.333% - 4px);
+  }
+  /* Count-bearing chips carry longer labels (e.g. "Menunggu Pembayaran") — give
+     them 2 per row so the label + count both stay readable. Overrides the 3+2
+     rule above for the rentals status filter. */
+  .segmented--counts .segmented__opt {
+    flex-basis: calc(50% - 4px) !important;   /* beat the higher-specificity :has(5-chips) rule */
+    font-size: 11px !important;
+    padding: 8px 12px 8px 14px !important;    /* room for label-left / count-right balance */
+    overflow: visible;
   }
 }
 .segmented__opt {

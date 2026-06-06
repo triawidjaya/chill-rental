@@ -2,7 +2,7 @@
 // pages/rentals.js
 // =============================================================
 
-import { RentalManager, renderRentalBadge } from '../modules/rentals.js';
+import { RentalManager, renderRentalBadge, getRentalBadge } from '../modules/rentals.js';
 import { formatIDR, formatDate, escapeHTML, toCSV, downloadFile, bindSearchInput } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
@@ -61,9 +61,6 @@ export function renderRentals() {
 
     <div class="toolbar toolbar--stacked">
       <div class="filter-row">
-        <button class="btn btn--ghost btn--sm filter-reset" data-action="reset-rental-filter" ${currentFilter === 'all' && !currentSearch ? 'disabled' : ''}>
-          ↻ Reset
-        </button>
         <div class="toolbar__search" style="flex:1">
           <span class="toolbar__search-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -74,12 +71,13 @@ export function renderRentals() {
 
       <div class="filter-group-row">
         <span class="filter-group-label">${t('page_filter_status')}</span>
-        <div class="segmented" role="tablist">
-          <button class="segmented__opt ${currentFilter === 'active' ? 'is-active' : ''}" data-filter="active" title="${t('page_filter_motor_active')}">🟢 ${t('badge_active')} <span class="filter-count">${counts.active}</span></button>
-          <button class="segmented__opt ${currentFilter === 'awaiting-payment' ? 'is-active' : ''}" data-filter="awaiting-payment" title="${t('page_filter_awaiting_payment_title')}">🟡 ${t('badge_awaiting_payment')} <span class="filter-count">${counts.awaitingPayment}</span></button>
-          <button class="segmented__opt ${currentFilter === 'awaiting-settle' ? 'is-active' : ''}" data-filter="awaiting-settle" title="${t('page_filter_awaiting_settle_title')}">🔵 Settle <span class="filter-count">${counts.awaitingSettle}</span></button>
-          <button class="segmented__opt ${currentFilter === 'damage-pending' ? 'is-active' : ''}" data-filter="damage-pending" title="${t('page_filter_damage_pending_title')}">🟠 ${t('badge_damage_pending')} <span class="filter-count">${counts.damagePending}</span></button>
-          <button class="segmented__opt ${currentFilter === 'fully-done' ? 'is-active' : ''}" data-filter="fully-done" title="${t('page_filter_fully_done_title')}">✅ ${t('badge_completed')} <span class="filter-count">${counts.fullyDone}</span></button>
+        <div class="segmented segmented--counts" role="tablist">
+          <button class="segmented__opt ${currentFilter === 'active' ? 'is-active' : ''}" data-filter="active" title="${t('page_filter_motor_active')}"><span class="seg-label">🟢 ${t('badge_active')}</span><span class="filter-count">${counts.active}</span></button>
+          <button class="segmented__opt ${currentFilter === 'awaiting-payment' ? 'is-active' : ''}" data-filter="awaiting-payment" title="${t('page_filter_awaiting_payment_title')}"><span class="seg-label">🟡 ${t('badge_awaiting_payment')}</span><span class="filter-count">${counts.awaitingPayment}</span></button>
+          <button class="segmented__opt ${currentFilter === 'awaiting-settle' ? 'is-active' : ''}" data-filter="awaiting-settle" title="${t('page_filter_awaiting_settle_title')}"><span class="seg-label">🔵 Settle</span><span class="filter-count">${counts.awaitingSettle}</span></button>
+          <button class="segmented__opt ${currentFilter === 'damage-pending' ? 'is-active' : ''}" data-filter="damage-pending" title="${t('page_filter_damage_pending_title')}"><span class="seg-label">🟠 ${t('badge_damage_pending')}</span><span class="filter-count">${counts.damagePending}</span></button>
+          <button class="segmented__opt ${currentFilter === 'fully-done' ? 'is-active' : ''}" data-filter="fully-done" title="${t('page_filter_fully_done_title')}"><span class="seg-label">✅ ${t('badge_completed')}</span><span class="filter-count">${counts.fullyDone}</span></button>
+          <button class="segmented__opt segmented__reset" data-action="reset-rental-filter" title="Reset" ${currentFilter === 'all' && !currentSearch ? 'disabled' : ''}>↻ Reset</button>
         </div>
       </div>
     </div>
@@ -137,13 +135,10 @@ export function renderRentals() {
             <div class="list-item__main">
               <div class="list-item__title-row">
                 <span class="list-item__title">${escapeHTML(r.guestName)}</span>
-                ${r.status === 'active' ? (r.passportHeld
-                  ? '<span class="badge badge--warning" style="font-size:10px">📘</span>'
-                  : '<span class="badge" style="font-size:10px">🏠</span>') : ''}
-                ${statusBadge(r.status, r)} ${sourceBadge(r)}
               </div>
+              <div class="list-item__icons">${metaIcons(r)}</div>
               <div class="list-item__sub">${escapeHTML(r.motorPlate)} · ${escapeHTML(r.motorDescription)}</div>
-              <div class="muted" style="font-size:12px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${formatDate(r.startDate)} → ${formatDate(r.actualFinishDate || r.finishDate)} · ${r.totalDays} hari</div>
+              <div class="list-item__meta muted">${formatDate(r.startDate)} → ${formatDate(r.actualFinishDate || r.finishDate)} · ${r.totalDays} hari</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
               <div style="font-weight:700">${formatIDR(r.totalCost)}</div>
@@ -160,6 +155,31 @@ export function renderRentals() {
       </style>
     `}
   `;
+}
+
+// Compact icon-only status/channel chips for the mobile meta line. Each icon
+// keeps a title tooltip so the meaning is still reachable; full-text badges stay
+// on the desktop table. Order: stay-status → rental-status → channel.
+function metaIcons(r) {
+  const icons = [];
+  if (r.status === 'active') {
+    icons.push(r.passportHeld
+      ? { ico: '📘', title: `Passport · ${t('passport_still_held') || 'ditahan'}` }
+      : { ico: '🏠', title: 'In-house' });
+  }
+  const b = getRentalBadge(r);
+  [b.primary, b.secondary].filter(Boolean).forEach(part => {
+    const sp = part.label.indexOf(' ');
+    icons.push(sp > 0
+      ? { ico: part.label.slice(0, sp), title: part.label.slice(sp + 1) }
+      : { ico: part.label, title: part.label });
+  });
+  icons.push(r.source === 'online'
+    ? { ico: '🌐', title: t('page_channel_online') }
+    : { ico: '🚶', title: t('page_channel_walkin') });
+  return icons
+    .map(i => `<span class="li-ico" title="${escapeHTML(i.title)}">${i.ico}</span>`)
+    .join('');
 }
 
 // Origination channel badge — online booking vs walk-in (reads r.source).
