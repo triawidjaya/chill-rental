@@ -8,6 +8,7 @@ import { RentalManager } from './rentals.js';
 import { OwnerManager } from './owners.js';
 import { DamageManager } from './damages.js';
 import { groupBy, sumBy } from './utils.js';
+import { t } from './i18n.js';
 
 export const ReportEngine = {
   // Dashboard KPIs
@@ -92,7 +93,7 @@ export const ReportEngine = {
     const groups = groupBy(motors, 'category');
     return ['A', 'B', 'C'].map(cat => ({
       category: cat,
-      label: cat === 'A' ? 'Properti' : cat === 'B' ? 'Staf' : 'Non Staf',
+      label: cat === 'A' ? t('cat_property') : cat === 'B' ? t('cat_staff') : t('cat_non_staff'),
       count: (groups[cat] || []).length,
       rented: (groups[cat] || []).filter(m => m.status === 'rented').length,
     }));

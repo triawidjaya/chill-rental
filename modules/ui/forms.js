@@ -200,9 +200,15 @@ export function openRentalForm(prefill = null) {
         <div style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px">${t('form_motor_info_title')}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:13px">
           <div><div class="muted" style="font-size:11px">${t('form_motor_price_per_day')}</div><strong id="mi-price">—</strong></div>
-          <div><div class="muted" style="font-size:11px">${t('form_motor_pto_per_day')}</div><strong id="mi-pto">—</strong></div>
           <div><div class="muted" style="font-size:11px">${t('form_motor_owner')}</div><strong id="mi-owner">—</strong></div>
         </div>
+      </div>
+
+      <!-- PTO override — defaults from the motor card, editable per rental. Commission = price − PTO -->
+      <div class="field" id="ci-pto-field" style="display:none">
+        <label class="field__label" for="ci-pto">${t('form_motor_pto_per_day')}</label>
+        <input id="ci-pto" class="input" type="number" step="5000" inputmode="numeric" />
+        <span class="field__hint" id="ci-comm-preview"></span>
       </div>
 
       <!-- ===== Step 3: Rental Time ===== -->
@@ -260,15 +266,34 @@ export function openRentalForm(prefill = null) {
   let filtCc = 'all';
   let filtSr = 'all';
 
-  // Reflect the chosen motor in the read-only info card (or hide it).
+  // ----- PTO override (per-rental) -----
+  let selectedMotor = null;
+  const ciPtoField = $('#ci-pto-field');
+  const ciPtoEl = $('#ci-pto');
+  const ciCommPreview = $('#ci-comm-preview');
+  const getCiPto = attachNumericInput(ciPtoEl, { placeholder: '50000' });
+  // Live commission preview: motor price − PTO override (commission is derived).
+  const updateCiComm = () => {
+    if (!selectedMotor) return;
+    const comm = (selectedMotor.pricePerDay || 0) - (getCiPto() || 0);
+    ciCommPreview.textContent = `${t('detail_commission')}: ${formatIDR(comm)}/${t('page_per_day')}`;
+    ciCommPreview.style.color = comm < 0 ? 'var(--danger)' : 'var(--success)';
+  };
+  ciPtoEl.addEventListener('input', updateCiComm);
+
+  // Reflect the chosen motor in the info card + seed the editable PTO (or hide both).
   const showMotorInfo = (m) => {
+    selectedMotor = m || null;
     if (m) {
       $('#mi-price').textContent = formatIDR(m.pricePerDay);
-      $('#mi-pto').textContent = formatIDR(m.payToOwnerPerDay || 0);
       $('#mi-owner').textContent = m.ownerName || '—';
       motorInfo.style.display = '';
+      ciPtoEl.value = (m.payToOwnerPerDay || 0).toLocaleString('id-ID');
+      ciPtoField.style.display = '';
+      updateCiComm();
     } else {
       motorInfo.style.display = 'none';
+      ciPtoField.style.display = 'none';
     }
   };
 
@@ -368,6 +393,17 @@ export function openRentalForm(prefill = null) {
     if (!motorId) return Toast.error(t('err_vehicle_required'));
     if (!startDate) return Toast.error(t('err_start_required'));
 
+    // Per-rental PTO override (seeded from the motor card). Commission = price − PTO,
+    // so the override may not exceed the motor's price.
+    let payToOwner;
+    if (selectedMotor) {
+      payToOwner = getCiPto();
+      if (payToOwner > (selectedMotor.pricePerDay || 0)) {
+        ciPtoEl.focus(); ciPtoEl.select?.();
+        return Toast.error(t('err_pto_exceeds_price'));
+      }
+    }
+
     const data = {
       guestName, wa, email, passportNo,
       motorId, startDate, finishDate,
@@ -379,7 +415,8 @@ export function openRentalForm(prefill = null) {
       // channel → 'online'; the plain manual "Rental Baru" form (no prefill) → 'walk-in'.
       source: prefill?.bookingChannel
               ?? (prefill?.bookingId ? 'online' : 'walk-in'),
-      // pricePerDay & payToOwner: LEAVE undefined — checkIn auto-fills from the motor
+      payToOwner,   // per-rental override (undefined → checkIn auto-fills from the motor)
+      // pricePerDay: LEAVE undefined — checkIn auto-fills from the motor
       // paymentMethod: LEAVE as default — it will be set at check-out
     };
 
@@ -1373,7 +1410,11 @@ export function openMotorForm(motorId = null) {
           <label class="field__label" for="m-owner">${t('form_motor_owner_label')}</label>
           <select id="m-owner" class="select">
             <option value="">${t('btn_select') || 'Select'} ${t('nav_owners').toLowerCase()}...</option>
-            ${owners.map(o => `<option value="${o.id}" ${m?.ownerId === o.id ? 'selected' : ''}>${escapeHTML(o.name)}</option>`).join('')}
+            ${owners.map(o => {
+              // Show the owner's type so the auto-selected category is transparent.
+              const typeLabel = o.type === 'property' ? t('cat_property') : o.type === 'staff' ? t('cat_staff') : t('cat_non_staff');
+              return `<option value="${o.id}" ${m?.ownerId === o.id ? 'selected' : ''}>${escapeHTML(o.name)}${o.type ? ` — ${escapeHTML(typeLabel)}` : ''}</option>`;
+            }).join('')}
           </select>
         </div>
         <div class="field">
@@ -1387,8 +1428,9 @@ export function openMotorForm(motorId = null) {
       </div>
       <div class="field">
         <label class="field__label required" for="m-pto">${t('form_motor_pto')}</label>
-        <input id="m-pto" class="input" type="number" step="5000" value="${m?.payToOwnerPerDay ?? Math.round((m?.pricePerDay || 70000) * 0.71)}" required />
+        <input id="m-pto" class="input" type="number" step="5000" value="${m?.payToOwnerPerDay ?? (m?.pricePerDay || 70000)}" required />
         <span class="field__hint">${t('form_motor_pto_hint')}</span>
+        <span class="field__hint" id="m-comm-preview" style="font-weight:600"></span>
       </div>
       <div class="field">
         <label class="field__label required" for="m-surfrack">${t('form_motor_surfrack')} <span style="color:var(--danger)">*</span></label>
@@ -1432,14 +1474,66 @@ export function openMotorForm(motorId = null) {
   const getPriceValue = attachNumericInput(body.querySelector('#m-price'), { placeholder: '70000' });
   const getPtoValue   = attachNumericInput(body.querySelector('#m-pto'),   { placeholder: '50000' });
 
+  const priceEl = body.querySelector('#m-price');
+  const ptoEl = body.querySelector('#m-pto');
+  const commPreview = body.querySelector('#m-comm-preview');
+
+  // Live commission preview: commission = price − PTO (derived, never a separate
+  // input). Flags the invalid case (PTO > price → negative commission) in red.
+  const updateCommPreview = () => {
+    const comm = (getPriceValue() || 0) - (getPtoValue() || 0);
+    commPreview.textContent = `${t('detail_commission')}: ${formatIDR(comm)}/${t('page_per_day')}`;
+    commPreview.style.color = comm < 0 ? 'var(--danger)' : 'var(--success)';
+  };
+  priceEl.addEventListener('input', updateCommPreview);
+  ptoEl.addEventListener('input', updateCommPreview);
+
+  // Owner → category: the owner's type maps 1:1 to a motor category, so picking
+  // an owner auto-selects the matching category (still editable as an override).
+  // A Property owner also defaults PTO to the full price (full payment, zero
+  // commission) — still editable afterwards.
+  const OWNER_TYPE_TO_CAT = { property: 'A', staff: 'B', partner: 'C' };
+  const ownerSel = body.querySelector('#m-owner');
+  const catSel = body.querySelector('#m-cat');
+  ownerSel.addEventListener('change', () => {
+    const owner = ownerSel.value ? OwnerManager.get(ownerSel.value) : null;
+    const cat = owner && OWNER_TYPE_TO_CAT[owner.type];
+    if (cat) catSel.value = cat;
+    if (owner?.type === 'property') {
+      ptoEl.value = (getPriceValue() || 70000).toLocaleString('id-ID');   // full payment for property
+      updateCommPreview();
+    }
+  });
+
+  updateCommPreview();   // initial
+
   document.getElementById('btn-save-motor').addEventListener('click', () => {
-    const surfrackVal = body.querySelector('#m-surfrack').value;
+    const plateEl = body.querySelector('#m-plate');
+    const descEl = body.querySelector('#m-desc');
+    const surfrackEl = body.querySelector('#m-surfrack');
+    const plate = plateEl.value.trim();
+    const description = descEl.value.trim();
+
+    // Validate top-to-bottom (matches field order) and focus the first offender
+    // so the fix is one tap away.
+    if (!plate || !description) {
+      (!plate ? plateEl : descEl).focus();
+      return Toast.error(t('err_plate_desc_required'));
+    }
+    const surfrackVal = surfrackEl.value;
     if (surfrackVal !== 'true' && surfrackVal !== 'false') {
+      surfrackEl.focus();
       return Toast.error(t('err_surfrack_required'));
     }
-    const plate = body.querySelector('#m-plate').value.trim();
-    const description = body.querySelector('#m-desc').value.trim();
-    if (!plate || !description) return Toast.error(t('err_plate_desc_required'));
+
+    const pricePerDay = getPriceValue() || 70000;
+    const payToOwnerPerDay = getPtoValue() || 0;
+    // Invariant: commission = price − PTO must be ≥ 0, so PTO can never exceed price.
+    if (payToOwnerPerDay > pricePerDay) {
+      ptoEl.focus();
+      ptoEl.select?.();
+      return Toast.error(t('err_pto_exceeds_price'));
+    }
 
     const ownerId = body.querySelector('#m-owner').value || null;
     const owner = ownerId ? OwnerManager.get(ownerId) : null;
@@ -1448,8 +1542,8 @@ export function openMotorForm(motorId = null) {
       plate,
       description,
       cc: body.querySelector('#m-cc').value,
-      pricePerDay: getPriceValue() || 70000,
-      payToOwnerPerDay: getPtoValue() || 0,
+      pricePerDay,
+      payToOwnerPerDay,
       ownerId,
       ownerName: owner?.name || '',
       category: body.querySelector('#m-cat').value,
@@ -1469,6 +1563,9 @@ export function openMotorForm(motorId = null) {
       Modal.close();
       window.dispatchEvent(new CustomEvent('route:refresh'));
     } catch (e) {
+      // The remaining create/update failure here is a duplicate plate — focus it.
+      plateEl.focus();
+      plateEl.select?.();
       Toast.error(e.message);
     }
   });
