@@ -3,7 +3,7 @@
 // =============================================================
 
 import { RentalManager, renderRentalBadge, getRentalBadge } from '../modules/rentals.js';
-import { formatIDR, formatDate, escapeHTML, toCSV, downloadFile, bindSearchInput } from '../modules/utils.js';
+import { formatIDR, formatDate, escapeHTML, toCSV, downloadFile, bindSearchInput, calcRentalDays } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
 let currentFilter = 'all'; // all | active | completed
@@ -120,8 +120,8 @@ export function renderRentals() {
                 <td>${escapeHTML(r.ownerName || '—')}</td>
                 <td>${formatDate(r.startDate)}</td>
                 <td>${formatDate(r.actualFinishDate || r.finishDate)}</td>
-                <td>${r.totalDays}</td>
-                <td><strong>${formatIDR(r.totalCost)}</strong></td>
+                <td>${displayDays(r)}</td>
+                <td><strong>${costCell(r)}</strong></td>
                 <td>${statusBadge(r.status, r)} ${sourceBadge(r)}</td>
               </tr>
             `).join('')}
@@ -138,10 +138,10 @@ export function renderRentals() {
               </div>
               <div class="list-item__icons">${metaIcons(r)}</div>
               <div class="list-item__sub">${escapeHTML(r.motorPlate)} · ${escapeHTML(r.motorDescription)}</div>
-              <div class="list-item__meta muted">${formatDate(r.startDate)} → ${formatDate(r.actualFinishDate || r.finishDate)} · ${r.totalDays} hari</div>
+              <div class="list-item__meta muted">${formatDate(r.startDate)} → ${formatDate(r.actualFinishDate || r.finishDate)} · ${displayDays(r)} hari</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <div style="font-weight:700">${formatIDR(r.totalCost)}</div>
+              <div style="font-weight:700">${costCell(r)}</div>
               <div class="muted" style="font-size:12px;margin-top:4px">${escapeHTML(r.ownerName || '')}</div>
             </div>
           </div>
@@ -188,6 +188,18 @@ function sourceBadge(r) {
     ? `<span class="badge badge--info" style="margin-left:6px;font-size:10px">🌐 ${t('page_channel_online')}</span>`
     : `<span class="badge" style="margin-left:6px;font-size:10px">🚶 ${t('page_channel_walkin')}</span>`;
 }
+
+// Active rentals carry no final cost yet (totalCost stays 0 until check-out),
+// so show a RUNNING estimate (start → now, same 11 AM / min-1-day rule as
+// check-out) instead of "Rp 0". Returned/completed/cancelled keep their final
+// stored values — those are the source of truth for reports & CSV export.
+const displayDays = (r) =>
+  r.status === 'active' ? calcRentalDays(r.startDate, new Date().toISOString()) : r.totalDays;
+const displayCost = (r) =>
+  r.status === 'active' ? displayDays(r) * (r.pricePerDay || 0) : r.totalCost;
+// "~" prefix flags the active estimate; final rows show the plain amount.
+const costCell = (r) =>
+  r.status === 'active' ? `~${formatIDR(displayCost(r))}` : formatIDR(r.totalCost);
 
 function statusBadge(status, rental) {
   // R7: use the multi-flag badge when a rental is provided
