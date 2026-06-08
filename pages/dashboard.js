@@ -5,7 +5,7 @@
 
 import { ReportEngine } from '../modules/reports.js';
 import { RentalManager } from '../modules/rentals.js';
-import { formatDate, escapeHTML, isPastCutoffToday } from '../modules/utils.js';
+import { formatDate, escapeHTML, isPastCutoffToday, calcRentalDays, formatIDR } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
 // Action Queue task chips — icon + label + colour. Each rental row shows one
@@ -66,6 +66,11 @@ export function renderDashboard() {
   const ch = ReportEngine.channelCounts();
   const activeAll = RentalManager.active();
   const recentActive = activeAll.slice(-5).reverse();
+  // Running cost estimate for active rentals: start → now, via the same 11 AM /
+  // min-1-day rule used at check-out. Display-only — the stored totalCost stays 0
+  // until check-out (reports & "awaiting payment" depend on that).
+  const nowISO = new Date().toISOString();
+  const estimateCost = (r) => calcRentalDays(r.startDate, nowISO) * (r.pricePerDay || 0);
   const byCat = ReportEngine.motorsByCategory();
 
   // Operational Action Queue (A1) — unfinished work in fixed priority order
@@ -83,7 +88,8 @@ export function renderDashboard() {
     ${renderActionQueue(queue, pastCutoffToday)}
 
     <div class="bento">
-      <!-- KPI Row — operational counts only (no money; financials live on Reports) -->
+      <!-- KPI strip — the four operational counts the front desk acts on.
+           (Money lives on Reports; month analytics moved to the side column below.) -->
       <div class="card span-3 card--accent">
         <div class="kpi">
           <span class="kpi__label">${t('page_available')}</span>
@@ -117,40 +123,7 @@ export function renderDashboard() {
         </div>
       </div>
 
-      <!-- Booking channel — online vs walk-in this month (operational count, no money) -->
-      <div class="card span-3">
-        <div class="kpi">
-          <span class="kpi__label">${t('page_channel_source')}</span>
-          <span class="kpi__value">🌐 ${ch.online} · 🚶 ${ch.walkin}</span>
-          <span class="kpi__sub">${t('page_channel_sub')}</span>
-        </div>
-      </div>
-
-      <!-- Category -->
-      <div class="card span-4">
-        <div class="card__header">
-          <div>
-            <div class="card__title">${t('page_by_category')}</div>
-            <div class="card__sub">${t('page_fleet_distribution')}</div>
-          </div>
-        </div>
-        <div class="stack">
-          ${byCat.map(c => `
-            <div>
-              <div class="row row--between" style="margin-bottom:6px">
-                <span style="font-weight:600">${c.label}</span>
-                <span class="muted" style="font-size:13px">${c.rented} ${t('page_rented')} / ${c.count} ${t('page_total')}</span>
-              </div>
-              <div class="meter">
-                <div class="meter__fill ${c.category === 'A' ? '' : c.category === 'B' ? 'meter__fill--warning' : 'meter__fill--success'}"
-                     style="width:${c.count ? (c.rented / c.count) * 100 : 0}%"></div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Active Rentals -->
+      <!-- Active Rentals — the primary "what's out right now" list (left column) -->
       <div class="card span-8">
         <div class="card__header">
           <div>
@@ -176,13 +149,51 @@ export function renderDashboard() {
                   <div class="list-item__sub">${escapeHTML(r.motorPlate)} · ${escapeHTML(r.motorDescription)}</div>
                 </div>
                 <div style="text-align:right">
-                  <span class="badge badge--brand">${r.totalDays} ${t('page_days')}</span>
-                  <div class="muted" style="font-size:12px;margin-top:4px">${formatDate(r.startDate)}</div>
+                  <span class="badge badge--brand">${calcRentalDays(r.startDate, nowISO)} ${t('page_days')}</span>
+                  <div style="font-weight:700;font-size:13px;margin-top:4px">~${formatIDR(estimateCost(r))}</div>
+                  <div class="muted" style="font-size:12px;margin-top:2px">${formatDate(r.startDate)}</div>
                 </div>
               </div>
             `).join('')}
           </div>
         `}
+      </div>
+
+      <!-- Secondary column — month analytics, de-emphasized beside the operational list.
+           Wrapper is the grid cell; the two cards stack inside it. -->
+      <div class="span-4 stack" style="gap:var(--sp-4)">
+        <!-- Category -->
+        <div class="card">
+          <div class="card__header">
+            <div>
+              <div class="card__title">${t('page_by_category')}</div>
+              <div class="card__sub">${t('page_fleet_distribution')}</div>
+            </div>
+          </div>
+          <div class="stack">
+            ${byCat.map(c => `
+              <div>
+                <div class="row row--between" style="margin-bottom:6px">
+                  <span style="font-weight:600">${c.label}</span>
+                  <span class="muted" style="font-size:13px">${c.rented} ${t('page_rented')} / ${c.count} ${t('page_total')}</span>
+                </div>
+                <div class="meter">
+                  <div class="meter__fill ${c.category === 'A' ? '' : c.category === 'B' ? 'meter__fill--warning' : 'meter__fill--success'}"
+                       style="width:${c.count ? (c.rented / c.count) * 100 : 0}%"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Booking channel — online vs walk-in this month (analytics, no money) -->
+        <div class="card">
+          <div class="kpi">
+            <span class="kpi__label">${t('page_channel_source')}</span>
+            <span class="kpi__value">🌐 ${ch.online} · 🚶 ${ch.walkin}</span>
+            <span class="kpi__sub">${t('page_channel_sub')}</span>
+          </div>
+        </div>
       </div>
 
     </div>
