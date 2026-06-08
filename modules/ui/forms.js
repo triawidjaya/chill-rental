@@ -20,16 +20,88 @@ import {
 import { recommendMotorOrder } from '../allocation.js';
 import { BookingManager } from '../booking.js';
 
-// Build the <option> list for the motor picker, ordered by fair-allocation
-// recommendation (category priority → least-recently-rented). The top option is
-// marked "⭐" as a SOFT suggestion — staff can still pick any motor.
-export function motorOptionsHtml(motors) {
-  const ordered = recommendMotorOrder(motors, RentalManager.list());
-  return ordered.map((m, i) => `
-            <option value="${m.id}" data-price="${m.pricePerDay}" data-pto="${m.payToOwnerPerDay || 0}" data-cc="${escapeHTML(m.cc)}" data-sr="${m.hasSurfrack ? 'true' : 'false'}">
-              ${i === 0 ? '⭐ ' : ''}${escapeHTML(m.plate)} — ${escapeHTML(m.description)}${m.hasSurfrack ? ' 🏄' : ''}${m.phoneHolder ? ' 📱' : ''}${m.gps ? ' 📍' : ''} (${escapeHTML(m.ownerName)})
-            </option>
-          `).join('');
+// Markup for a searchable, plate-filtered motor combobox. `idBase` keys the three
+// nodes: the visible search input (`${idBase}-search`), a hidden field that holds
+// the selected motor id (`${idBase}` — submit/edit code reads this), and the
+// results list (`${idBase}-list`). Wire it with wireMotorCombo().
+export function motorComboHtml(idBase) {
+  return `
+    <div class="combo" id="${idBase}-combo">
+      <input id="${idBase}-search" class="input combo__input" type="text" autocomplete="off"
+             placeholder="${t('form_search_plate_ph')}" />
+      <input id="${idBase}" type="hidden" />
+      <div class="combo__list" id="${idBase}-list" hidden></div>
+    </div>`;
+}
+
+// Behaviour for a motor combobox: type a plate to filter (case-insensitive
+// substring), list ordered by fair-allocation (⭐ = top pick), click/Enter to pick.
+//   root      element containing the combo markup
+//   idBase    same key passed to motorComboHtml()
+//   getBase   () => motors[]  current candidate pool (callers apply cc/surfrack first)
+//   onChange  (motor|null)    fired on selection change (e.g. update an info card)
+//   onRender  (ordered[])     fired after each list render (e.g. update a count)
+// Returns { select, refresh } for prefill / external filter resets.
+export function wireMotorCombo({ root, idBase, getBase, onChange = () => {}, onRender = () => {} }) {
+  const search = root.querySelector(`#${idBase}-search`);
+  const hidden = root.querySelector(`#${idBase}`);
+  const list = root.querySelector(`#${idBase}-list`);
+
+  const candidates = () => {
+    const q = search.value.trim().toLowerCase();
+    const base = getBase();
+    const matched = q
+      ? base.filter(m => String(m.plate || '').toLowerCase().includes(q))
+      : base;
+    return recommendMotorOrder(matched, RentalManager.list());
+  };
+
+  const refresh = () => {
+    const ordered = candidates();
+    list.innerHTML = ordered.length
+      ? ordered.map((m, i) => `
+          <button type="button" class="combo__item" data-id="${m.id}">
+            ${i === 0 ? '⭐ ' : ''}<strong>${escapeHTML(m.plate)}</strong> — ${escapeHTML(m.description)}${m.hasSurfrack ? ' 🏄' : ''}${m.phoneHolder ? ' 📱' : ''}${m.gps ? ' 📍' : ''} <span class="muted">(${escapeHTML(m.ownerName)})</span>
+          </button>`).join('')
+      : `<div class="combo__empty">${t('form_no_motor_match')}</div>`;
+    onRender(ordered);
+    return ordered;
+  };
+
+  const openList = () => { refresh(); list.hidden = false; };
+  const closeList = () => { list.hidden = true; };
+
+  // Commit a selection (null clears it): lock the hidden id, label the input.
+  const select = (m) => {
+    hidden.value = m ? m.id : '';
+    search.value = m ? `${m.plate} — ${m.description}` : '';
+    onChange(m || null);
+    closeList();
+  };
+
+  search.addEventListener('focus', openList);
+  search.addEventListener('input', () => { hidden.value = ''; onChange(null); openList(); });
+  // Enter picks the top (recommended) candidate — fast keyboard check-in.
+  search.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const top = candidates()[0];
+    if (top) select(top);
+  });
+  // mousedown (not click) so it beats the input's blur that closes the list.
+  list.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('.combo__item');
+    if (!item) return;
+    e.preventDefault();
+    const m = MotorManager.get(item.dataset.id);
+    if (m) select(m);
+  });
+  // Leaving the field closes the list; drop stray text if nothing was committed.
+  search.addEventListener('blur', () => {
+    setTimeout(() => { closeList(); if (!hidden.value) search.value = ''; }, 120);
+  });
+
+  return { select, refresh };
 }
 
 // Key-handover staff field for check-in / check-out. The stamp is auto-set to the
@@ -117,11 +189,8 @@ export function openRentalForm(prefill = null) {
         </div>
       </div>
       <div class="field">
-        <label class="field__label required" for="f-motor">${t('form_vehicle')}</label>
-        <select id="f-motor" class="select" required>
-          <option value="">${t('form_vehicle_placeholder')}</option>
-          ${motorOptionsHtml(motorsAvail)}
-        </select>
+        <label class="field__label required" for="f-motor-search">${t('form_vehicle')}</label>
+        ${motorComboHtml('f-motor')}
         <span class="field__hint" id="motor-count">${motorsAvail.length} ${t('form_available_count')}</span>
         <span class="field__hint">⭐ ${t('form_recommended_hint')}</span>
       </div>
@@ -183,22 +252,38 @@ export function openRentalForm(prefill = null) {
   Modal.open({ title: t('modal_new_rental'), body, footer, size: 'lg' });
 
   const $ = (id) => body.querySelector(id);
-  const motorSel = $('#f-motor');
-  const motorCount = $('#motor-count');
   const motorInfo = $('#motor-info');
+  const motorCount = $('#motor-count');
   const calcCard = $('#calc-card');
 
   // ----- Filter state -----
   let filtCc = 'all';
   let filtSr = 'all';
 
-  const applyFilter = () => {
-    const filtered = MotorManager.byCcAndSurfrack(filtCc, filtSr);
-    motorSel.innerHTML = '<option value="">' + t('form_vehicle_placeholder') + '</option>' + motorOptionsHtml(filtered);
-    motorCount.textContent = `${filtered.length} ${t('form_available_count')}`;
-    motorSel.value = '';
-    motorInfo.style.display = 'none';
+  // Reflect the chosen motor in the read-only info card (or hide it).
+  const showMotorInfo = (m) => {
+    if (m) {
+      $('#mi-price').textContent = formatIDR(m.pricePerDay);
+      $('#mi-pto').textContent = formatIDR(m.payToOwnerPerDay || 0);
+      $('#mi-owner').textContent = m.ownerName || '—';
+      motorInfo.style.display = '';
+    } else {
+      motorInfo.style.display = 'none';
+    }
   };
+
+  // Searchable motor picker. Candidate pool = current cc/surfrack filter; the combo
+  // adds the typed-plate filter, the ⭐ ordering, and selection handling.
+  const motorCombo = wireMotorCombo({
+    root: body,
+    idBase: 'f-motor',
+    getBase: () => MotorManager.byCcAndSurfrack(filtCc, filtSr),
+    onChange: showMotorInfo,
+    onRender: (ordered) => { motorCount.textContent = `${ordered.length} ${t('form_available_count')}`; },
+  });
+
+  // Segmented cc/surfrack change → reset any pick and re-filter the list.
+  const applyFilter = () => { motorCombo.select(null); motorCombo.refresh(); };
 
   body.querySelectorAll('#filt-cc [data-cc]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -215,18 +300,6 @@ export function openRentalForm(prefill = null) {
       filtSr = btn.dataset.sr;
       applyFilter();
     });
-  });
-
-  motorSel.addEventListener('change', () => {
-    const m = MotorManager.get(motorSel.value);
-    if (m) {
-      $('#mi-price').textContent = formatIDR(m.pricePerDay);
-      $('#mi-pto').textContent = formatIDR(m.payToOwnerPerDay || 0);
-      $('#mi-owner').textContent = m.ownerName || '—';
-      motorInfo.style.display = '';
-    } else {
-      motorInfo.style.display = 'none';
-    }
   });
 
   // Estimated days (only when finish is filled in)
@@ -1082,14 +1155,8 @@ export function openRentalEditForm(rentalId, afterSave = null) {
 
       <div style="font-weight:700;color:var(--brand);font-size:13px;text-transform:uppercase;letter-spacing:0.04em;margin-top:8px">${t('form_section_vehicle')}</div>
       <div class="field">
-        <label class="field__label required" for="ef-motor">${t('form_section_vehicle')}</label>
-        <select id="ef-motor" class="select" required>
-          ${motorOptions.map(m => `
-            <option value="${m.id}" ${m.id === r.motorId ? 'selected' : ''}>
-              ${escapeHTML(m.plate)} — ${escapeHTML(m.description)}${m.hasSurfrack ? ' 🏄' : ''}${m.id === r.motorId ? ` ${t('form_edit_vehicle_current')}` : ''}
-            </option>
-          `).join('')}
-        </select>
+        <label class="field__label required" for="ef-motor-search">${t('form_section_vehicle')}</label>
+        ${motorComboHtml('ef-motor')}
         <span class="field__hint">${t('form_edit_vehicle_hint')}</span>
       </div>
 
@@ -1127,6 +1194,11 @@ export function openRentalEditForm(rentalId, afterSave = null) {
   `;
 
   Modal.open({ title: t('modal_edit_rental_title'), body, footer, size: 'lg' });
+
+  // Searchable motor picker, pre-selected to the rental's current motor. The pool
+  // is available motors + the current one (so it never vanishes mid-rental).
+  const motorCombo = wireMotorCombo({ root: body, idBase: 'ef-motor', getBase: () => motorOptions });
+  motorCombo.select(currentMotor || MotorManager.get(r.motorId));
 
   document.getElementById('btn-save-edit').addEventListener('click', () => {
     const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);

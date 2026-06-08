@@ -279,6 +279,52 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239a9690' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
+/* ===== SEARCHABLE COMBOBOX (motor picker) ===== */
+.combo { position: relative; }
+.combo__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: min(260px, 45dvh);    /* shrink on short / keyboard-open screens */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-lg);
+  padding: 4px;
+}
+[data-theme="dark"] .combo__list { background: var(--bg-elev-2); }
+.combo__item {
+  display: block;
+  width: 100%;
+  min-height: 44px;                 /* comfortable touch target */
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  cursor: pointer;
+  line-height: 1.35;
+}
+.combo__item:hover,
+.combo__item:focus { background: var(--bg-subtle); outline: none; }
+.combo__empty {
+  padding: 14px 12px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--fs-sm);
+}
+/* Mobile: 16px input font stops iOS Safari from auto-zooming on focus (which
+   would otherwise yank the layout around while the results list is open). */
+@media (max-width: 600px) {
+  .combo__input { font-size: 16px; }
+}
+
 .field-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
