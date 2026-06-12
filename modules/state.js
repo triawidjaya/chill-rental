@@ -75,6 +75,24 @@ class AppState {
     this._markTombstone(key, id);
   }
 
+  // Bulk soft-delete: one list write + one outbox persist for the whole batch,
+  // instead of O(n) remove() calls (each of which rewrites localStorage).
+  removeMany(key, ids) {
+    if (!ids || !ids.length) return;
+    const drop = new Set(ids);
+    this.set(key, (this.data[key] || []).filter(it => !drop.has(it.id)));
+    if (!SYNCED_KEYS.includes(key)) return;
+    const deletedAt = new Date().toISOString();
+    const queued = new Set(this._outbox.tombstones.map(t => `${t.key}:${t.id}`));
+    ids.forEach(id => {
+      if (!id) return;
+      if (this._outbox.dirty[key]) delete this._outbox.dirty[key][id];
+      if (!queued.has(`${key}:${id}`)) this._outbox.tombstones.push({ key, id, deletedAt });
+    });
+    this._persistOutbox();
+    this._emitLocalChange();
+  }
+
   // Find by id
   find(key, id) {
     return (this.data[key] || []).find(it => it.id === id);

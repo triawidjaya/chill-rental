@@ -41,6 +41,7 @@ const ACTION_MIN_RANK = {
   'page.staff':     3,
   'data.reset':     3,
   'data.backup':    3,
+  'audit.purge':    3,
 };
 
 let _cache; // cached session object | null | undefined(=unloaded)

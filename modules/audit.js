@@ -41,6 +41,7 @@ export const AuditActions = {
   RESET_PIN: 'reset-pin',
   SEED: 'seed',
   RESET_ALL: 'reset-all',
+  AUDIT_PURGE: 'audit-purge',
 };
 
 // Default actor — replaced in Phase B by SessionManager.current()
@@ -133,11 +134,19 @@ export const AuditManager = {
     return Array.from(seen.values());
   },
 
-  // Auto-purge entries older than N days
-  purgeOlderThan(days = 180) {
-    const cutoff = new Date(Date.now() - days * 86400000).toISOString();
-    const list = this.list().filter(e => e.timestamp >= cutoff);
-    state.set('auditLog', list);
-    return list.length;
+  // Delete every entry before the cutoff. Uses removeMany so the deletions
+  // tombstone-sync to other devices (state.set alone would let the server
+  // resurrect them). The purge itself is logged. Returns the deleted count.
+  purgeBefore(cutoffISO) {
+    const ids = this.list().filter(e => (e.timestamp || '') < cutoffISO).map(e => e.id);
+    if (ids.length === 0) return 0;
+    state.removeMany('auditLog', ids);
+    this.log({
+      entity: AuditEntities.SYSTEM,
+      entityLabel: 'Audit log purge',
+      action: AuditActions.AUDIT_PURGE,
+      note: `${ids.length} entri < ${cutoffISO.slice(0, 10)}`,
+    });
+    return ids.length;
   },
 };

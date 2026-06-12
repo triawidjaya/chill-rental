@@ -124,15 +124,26 @@ class SyncEngine {
     }
 
     // Tombstones (soft-delete): set deleted_at; update-only preserves payload and
-    // is a harmless no-op if the row never reached the server.
-    for (const tomb of tombstones) {
-      const table = TABLE_BY_KEY[tomb.key];
-      const { error } = await this.client
-        .from(table)
-        .update({ deleted_at: tomb.deletedAt, updated_at: tomb.deletedAt })
-        .eq('id', tomb.id);
-      if (error) { console.warn('[Sync] tombstone failed:', table, error.message); continue; }
-      pushed.tombstones.push(tomb);
+    // is a harmless no-op if the row never reached the server. Batched per table
+    // (chunks of 200) so a bulk purge doesn't fire one request per record.
+    const tombsByKey = new Map();
+    tombstones.forEach(t => {
+      if (!tombsByKey.has(t.key)) tombsByKey.set(t.key, []);
+      tombsByKey.get(t.key).push(t);
+    });
+    for (const [key, tombs] of tombsByKey) {
+      const table = TABLE_BY_KEY[key];
+      for (let i = 0; i < tombs.length; i += 200) {
+        const chunk = tombs.slice(i, i + 200);
+        // One timestamp per chunk: the newest deletedAt still wins LWW everywhere.
+        const ts = chunk.reduce((m, t) => (t.deletedAt > m ? t.deletedAt : m), chunk[0].deletedAt);
+        const { error } = await this.client
+          .from(table)
+          .update({ deleted_at: ts, updated_at: ts })
+          .in('id', chunk.map(t => t.id));
+        if (error) { console.warn('[Sync] tombstone failed:', table, error.message); continue; }
+        pushed.tombstones.push(...chunk);
+      }
     }
 
     state.clearOutbox(pushed);
