@@ -154,6 +154,43 @@
 }
 .nav__item.is-active svg { color: var(--brand); }
 
+/* Nav groups (collapsible) */
+.nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav__group + .nav__group { margin-top: var(--sp-3); }
+.nav__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: var(--r-sm);
+}
+.nav__group-header:hover { color: var(--text-primary); }
+.nav__group-chevron {
+  flex-shrink: 0;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.nav__group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav__group.is-collapsed .nav__group-items { display: none; }
+.nav__group.is-collapsed .nav__group-chevron { transform: rotate(-90deg); }
+
 .sidebar__footer {
   display: flex;
   flex-direction: column;
@@ -181,6 +218,27 @@
   /* Hide labels (span elements) */
   .app-shell.is-sidebar-collapsed .nav__item > span {
     display: none;
+  }
+  /* Nav groups in icon-rail mode: header becomes a thin divider, collapse is ignored */
+  .app-shell.is-sidebar-collapsed .nav__group-header {
+    padding: 0;
+    height: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 0;
+    margin: var(--sp-2) var(--sp-2) 0;
+    pointer-events: none;
+  }
+  .app-shell.is-sidebar-collapsed .nav__group-header > span,
+  .app-shell.is-sidebar-collapsed .nav__group-chevron {
+    display: none;
+  }
+  .app-shell.is-sidebar-collapsed .nav__group:first-child .nav__group-header {
+    border-top: none;
+    margin-top: 0;
+  }
+  .app-shell.is-sidebar-collapsed .nav__group + .nav__group { margin-top: 0; }
+  .app-shell.is-sidebar-collapsed .nav__group.is-collapsed .nav__group-items {
+    display: flex;
   }
   /* Tooltip on hover when collapsed — show label as floating chip */
   .app-shell.is-sidebar-collapsed .nav__item:hover::after {

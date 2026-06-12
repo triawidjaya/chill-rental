@@ -89,6 +89,12 @@ function setActiveNav(route) {
   document.querySelectorAll('[data-route]').forEach((el) => {
     el.classList.toggle('is-active', el.dataset.route === route);
   });
+  // Auto-expand the sidebar group containing the active item so it is never hidden
+  const activeItem = document.querySelector(`.nav .nav__item[data-route="${route}"]`);
+  const group = activeItem?.closest('.nav__group');
+  if (group && group.classList.contains('is-collapsed')) {
+    setNavGroupCollapsed(group.dataset.group, false);
+  }
 }
 
 function renderRoute() {
@@ -231,6 +237,33 @@ function toggleDesktopSidebar() {
   settings.sidebarCollapsed = next;
   state.set('settings', settings);
   applySidebarCollapsed(next);
+}
+
+// ---------- Sidebar nav groups (collapsible) ----------
+function applyNavGroups(collapsedMap) {
+  const map = collapsedMap || {};
+  document.querySelectorAll('.nav__group').forEach((group) => {
+    const collapsed = !!map[group.dataset.group];
+    group.classList.toggle('is-collapsed', collapsed);
+    const header = group.querySelector('[data-group-toggle]');
+    if (header) header.setAttribute('aria-expanded', String(!collapsed));
+  });
+}
+
+function setNavGroupCollapsed(key, collapsed) {
+  const settings = state.get('settings') || {};
+  const map = settings.navGroupsCollapsed || {};
+  if (collapsed) map[key] = true;
+  else delete map[key];
+  settings.navGroupsCollapsed = map;
+  state.set('settings', settings);
+  applyNavGroups(map);
+}
+
+function toggleNavGroup(key) {
+  const settings = state.get('settings') || {};
+  const map = settings.navGroupsCollapsed || {};
+  setNavGroupCollapsed(key, !map[key]);
 }
 
 // ---------- Theme ----------
@@ -567,6 +600,11 @@ function bindEvents() {
     });
   });
 
+  // Sidebar group headers — collapse/expand
+  document.querySelectorAll('[data-group-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => toggleNavGroup(btn.dataset.groupToggle));
+  });
+
   // Delegated data-action handler on content
   $content.addEventListener('click', (e) => {
     const el = e.target.closest('[data-action]');
@@ -750,6 +788,7 @@ async function boot() {
   const settings = state.get('settings') || {};
   applyTheme(settings.theme || 'light');
   applySidebarCollapsed(!!settings.sidebarCollapsed);
+  applyNavGroups(settings.navGroupsCollapsed);
 
   // Wire events
   bindEvents();

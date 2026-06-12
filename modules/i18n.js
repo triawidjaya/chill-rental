@@ -27,6 +27,9 @@ const strings = {
     nav_audit: 'Riwayat Aktivitas',
     nav_damages: 'Kerusakan',
     nav_settings: 'Pengaturan',
+    nav_group_ops: 'Operasional',
+    nav_group_manage: 'Manajemen',
+    nav_group_system: 'Sistem',
 
     // Topbar
     topbar_context_default: 'Beranda',
@@ -856,6 +859,9 @@ const strings = {
     nav_audit: 'Activity Log',
     nav_damages: 'Damage Claims',
     nav_settings: 'Settings',
+    nav_group_ops: 'Operations',
+    nav_group_manage: 'Management',
+    nav_group_system: 'System',
 
     // Topbar
     topbar_context_default: 'Dashboard',
