@@ -557,15 +557,6 @@ function bindEvents() {
   });
   $btnTheme?.addEventListener('click', toggleTheme);
 
-  // Account block (Fase B.2)
-  const goToGate = () => {
-    SessionManager.logout();
-    appStarted = false;
-    updateAccountBlock();
-    closeSidebar();
-    AuthGate.show({ onAuthenticated: startApp });
-  };
-
   // Logout — confirm first (you're leaving)
   $btnLogout?.addEventListener('click', async () => {
     const ok = await Modal.confirm({
@@ -779,6 +770,45 @@ function reconcileMotorStatus() {
   if (changed) state.set('motors', newMotors);
 }
 
+// ---------- Auth gate handoff (Fase B.2) ----------
+// Back to the staff gate: logout / switch user / idle-lock "switch user".
+function goToGate() {
+  SessionManager.logout();
+  appStarted = false;
+  updateAccountBlock();
+  closeSidebar();
+  if ($appShell) $appShell.hidden = true; // no app data behind the gate
+  AuthGate.show({ onAuthenticated: startApp });
+}
+
+// ---------- Idle lock ----------
+// 20 minutes without interaction (all roles) → re-ask the current user's PIN.
+// Threshold + passwordless exemption live in SessionManager.idleExpired().
+let _lockShown = false;
+
+function initIdleWatch() {
+  // While locked, ignore interactions: typing the PIN must not refresh the
+  // idle clock, or a reload mid-lock would slip past the boot-time check.
+  const touch = () => { if (appStarted && !_lockShown) SessionManager.touchActivity(); };
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) =>
+    document.addEventListener(ev, touch, { passive: true }));
+  setInterval(maybeIdleLock, 30 * 1000);
+  // Tab refocused / device woken after a long sleep — check immediately.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) maybeIdleLock(); });
+}
+
+function maybeIdleLock() {
+  if (!appStarted || _lockShown || !SessionManager.idleExpired()) return;
+  const staff = StaffManager.get(SessionManager.current()?.staffId);
+  if (!staff) return;
+  _lockShown = true;
+  AuthGate.showLock({
+    staff,
+    onAuthenticated: () => { _lockShown = false; }, // login() already reset the idle clock
+    onSwitchUser: () => { _lockShown = false; goToGate(); },
+  });
+}
+
 // ---------- Boot ----------
 async function boot() {
   // Migrate first (safe — non-destructive)
@@ -792,6 +822,7 @@ async function boot() {
 
   // Wire events
   bindEvents();
+  initIdleWatch();
 
   // Audit actor = logged-in user (Fase B.2). Falls back to 'system' pre-login.
   setActorResolver(() => SessionManager.current() || { id: 'system', name: 'system', role: 'system' });
@@ -849,7 +880,16 @@ async function continueBoot() {
     // even if a non-manager session exists on this device.
     AuthGate.show({ onAuthenticated: startApp });
   } else if (SessionManager.isAuthenticated()) {
-    startApp();
+    if (SessionManager.idleExpired()) {
+      // Reload must not slip past the idle lock — re-ask the PIN before the app.
+      AuthGate.showLock({
+        staff: StaffManager.get(SessionManager.current().staffId),
+        onAuthenticated: startApp,
+        onSwitchUser: goToGate,
+      });
+    } else {
+      startApp();
+    }
   } else {
     AuthGate.show({ onAuthenticated: startApp });
   }
@@ -861,6 +901,8 @@ function startApp() {
   // Ensure the auth overlay is fully dismissed regardless of which gate path ran.
   const ar = document.getElementById('auth-root');
   if (ar) { ar.hidden = true; ar.innerHTML = ''; }
+  // Reveal the app shell (kept hidden in index.html until auth resolves).
+  if ($appShell) $appShell.hidden = false;
   updateAccountBlock();
 
   // Default hash

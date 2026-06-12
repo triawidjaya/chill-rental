@@ -53,6 +53,15 @@ export const AuthGate = {
     renderResetPassword(onDone || (() => {}));
   },
 
+  // Idle lock — re-ask the current user's PIN after inactivity. Keeps the
+  // session; "switch user" hands off to the caller (logout + full gate).
+  showLock({ staff, onAuthenticated, onSwitchUser } = {}) {
+    _onAuth = onAuthenticated || (() => {});
+    const r = root();
+    if (r) r.hidden = false;
+    renderLockScreen(staff, onSwitchUser || (() => {}));
+  },
+
   // Layer 2 — staff picker / first-run / recovery (in-app identity + role).
   show({ onAuthenticated } = {}) {
     _onAuth = onAuthenticated || (() => {});
@@ -289,10 +298,15 @@ function renderRecover() {
     if (!pinVal) { err.textContent = t('auth_err_pin_required'); return; }
     if (!targetHasPin && !isValidPinFormat(pinVal)) { err.textContent = t('pin_err_format'); return; }
     try {
-      StaffManager.update(staffId, { role: 'manager' });   // promote
       if (!targetHasPin) await SessionManager.setPin(staffId, pinVal);
       const res = await SessionManager.login(staffId, pinVal);
-      if (res.ok) done();
+      if (res.ok) {
+        // Promote only AFTER the PIN verified — a wrong PIN must not leave a
+        // (synced) manager role behind on a failed attempt.
+        StaffManager.update(staffId, { role: 'manager' });
+        SessionManager.refresh(); // session snapshot picks up the new role
+        done();
+      }
       else if (res.reason === 'wrong_pin') err.textContent = t('auth_err_wrong_pin');
       else err.textContent = t('auth_err_generic');
     } catch (e) {
@@ -342,7 +356,11 @@ async function loginPasswordless(staff) {
     // Per migration policy: passwordless login is allowed, but nudge to set a PIN.
     sessionStorage.setItem('pin_nudge', '1');
     done();
+    return;
   }
+  // Rare: staff deactivated/changed on another device since the picker rendered.
+  Toast.error(t('auth_err_generic'));
+  renderStaffPicker();
 }
 
 // ---- Force a PIN for an elevated role (manager) that has none yet ----
@@ -417,6 +435,41 @@ function renderPinEntry(staff) {
     if (res.ok) { done(); return; }
     if (res.reason === 'wrong_pin') err.textContent = t('auth_err_wrong_pin');
     else if (res.reason === 'pin_required') err.textContent = t('auth_err_pin_required');
+    else err.textContent = t('auth_err_generic');
+    input.value = '';
+    input.focus();
+  }
+}
+
+// ---- Idle lock screen: same user, PIN only ----
+function renderLockScreen(staff, onSwitchUser) {
+  const r = root();
+  r.innerHTML = shell(`
+    <h2 class="auth-title">${t('auth_hello', { name: escapeText(staff.name) })}</h2>
+    <p class="auth-lede">${t('auth_locked_lede')}</p>
+    <div class="stack" style="gap:12px">
+      <input id="lk-pin" class="input auth-pin-input" type="password" inputmode="numeric"
+             maxlength="6" placeholder="••••" autocomplete="off" />
+      <p id="lk-err" class="field__hint" style="color:var(--danger);min-height:1em"></p>
+      <button class="btn btn--block" id="lk-go">${t('auth_login')}</button>
+      <button class="auth-link" id="lk-switch">${t('auth_switch_user')}</button>
+    </div>
+  `);
+
+  const input = r.querySelector('#lk-pin');
+  const err = r.querySelector('#lk-err');
+  input.addEventListener('input', () => { input.value = input.value.replace(/\D/g, ''); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  setTimeout(() => input.focus(), 60);
+
+  r.querySelector('#lk-switch').addEventListener('click', () => { hide(); onSwitchUser(); });
+  r.querySelector('#lk-go').addEventListener('click', submit);
+
+  async function submit() {
+    err.textContent = '';
+    const res = await SessionManager.login(staff.id, input.value);
+    if (res.ok) { done(); return; }
+    if (res.reason === 'wrong_pin') err.textContent = t('auth_err_wrong_pin');
     else err.textContent = t('auth_err_generic');
     input.value = '';
     input.focus();

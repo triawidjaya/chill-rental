@@ -1,4 +1,8 @@
 /* ===== APP SHELL ===== */
+/* display:grid below would override the UA [hidden] rule — keep the shell
+   hideable while auth is unresolved (see index.html / startApp) */
+.app-shell[hidden] { display: none; }
+
 .app-shell {
   display: grid;
   grid-template-columns: 1fr;

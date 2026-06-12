@@ -17,8 +17,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- App shell -->
-  <div id="app" class="app-shell">
+  <!-- App shell — hidden until auth resolves (revealed in startApp) to avoid a
+       flash of the full page before the login overlay renders -->
+  <div id="app" class="app-shell" hidden>
     <!-- Top bar (mobile + desktop) -->
     <header class="topbar" role="banner">
       <button class="icon-btn topbar__menu" id="btn-menu" data-i18n-aria="topbar_menu_aria">
@@ -187,7 +188,21 @@
   </div>
 
   <!-- Auth gate mount (Fase B.2) — full-screen login overlay -->
-  <div id="auth-root" hidden></div>
+  <!-- Boot splash: visible immediately, replaced by the login gate (or hidden
+       by startApp) once boot() resolves the auth state -->
+  <div id="auth-root">
+    <div class="auth-overlay">
+      <div class="auth-card card">
+        <div class="auth-brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h2l3 6"/><path d="M5.5 17.5L9 8h4l2.5 6"/></svg>
+          </div>
+          <h1>Chill Rental</h1>
+        </div>
+        <div class="auth-spinner" role="status" aria-label="Memuat…"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Modules (load order matters) -->
   <script type="module" src="modules/app.js"></script>

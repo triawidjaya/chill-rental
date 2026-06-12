@@ -5,6 +5,7 @@
 
 import { RentalManager, renderRentalBadge } from '../modules/rentals.js';
 import { MotorManager } from '../modules/motors.js';
+import { BookingManager } from '../modules/booking.js';
 import { AuditManager } from '../modules/audit.js';
 import { SessionManager } from '../modules/session.js';
 import { Modal, Toast } from '../modules/ui/notify.js';
@@ -309,13 +310,21 @@ function renderTrailTab() {
       </div></div>
     ` : `
       <div class="list-card">
-        ${entries.slice(0, 200).map(e => `
-          <div class="list-item">
+        ${entries.slice(0, 200).map(e => {
+          // Booking entries (online & walk-in) link to the booking detail —
+          // only when the booking still exists (it may have been purged).
+          const booking = e.entity === 'booking' && e.entityId ? BookingManager.get(e.entityId) : null;
+          const channelKey = booking?.channel === 'walkin' ? 'page_channel_walkin'
+            : booking?.channel === 'online' ? 'page_channel_online' : null;
+          return `
+          <div class="list-item" ${booking ? `data-action="open-booking" data-id="${escapeHTML(booking.id)}" style="cursor:pointer" title="${t('booking_detail_title')}"` : ''}>
             <div class="list-item__main">
               <div class="row" style="gap:8px;flex-wrap:nowrap;align-items:center">
                 <span class="badge badge--brand" style="font-size:10px">${escapeHTML(e.entity)}</span>
+                ${channelKey ? `<span class="badge badge--info" style="font-size:10px">${t(channelKey)}</span>` : ''}
                 <span class="badge ${actionBadgeClass(e.action)}" style="font-size:10px">${escapeHTML(e.action)}</span>
                 <strong>${escapeHTML(e.entityLabel || '—')}</strong>
+                ${booking ? '<span class="muted" aria-hidden="true" style="font-size:11px">↗</span>' : ''}
               </div>
               ${e.changes && Array.isArray(e.changes) ? `
                 <div class="muted" style="font-size:12px;margin-top:4px">
@@ -329,7 +338,7 @@ function renderTrailTab() {
               <div class="muted" style="font-size:11px;margin-top:2px">${formatDateTime(e.timestamp)}</div>
             </div>
           </div>
-        `).join('')}
+        `;}).join('')}
         ${entries.length > 200 ? `<div class="muted" style="padding:12px;text-align:center;font-size:12px">${t('page_displaying')} 200 ${t('page_of_entries', { total: entries.length })}</div>` : ''}
       </div>
     `}

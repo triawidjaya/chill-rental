@@ -37,6 +37,7 @@ export const AuditActions = {
   // Auth (Phase B)
   LOGIN: 'login',
   LOGIN_FAIL: 'login-fail',
+  LOGOUT: 'logout',
   ROLE_CHANGE: 'role-change',
   RESET_PIN: 'reset-pin',
   SEED: 'seed',
@@ -87,11 +88,19 @@ export const AuditManager = {
 
   // Update-logging helper — compute the diff between the old object and the new patch
   logUpdate({ entity, entityId, entityLabel, before, patch, note }) {
+    // Secret material must not land in the (synced, admin-readable) audit log —
+    // record THAT the field changed, never the values.
+    const REDACTED = ['pinHash', 'pinSalt', 'resetHash', 'resetSalt'];
     const changes = [];
     Object.keys(patch || {}).forEach(k => {
       if (k === 'updatedAt') return;
       if (before?.[k] !== patch[k]) {
-        changes.push({ field: k, from: before?.[k], to: patch[k] });
+        const redact = REDACTED.includes(k);
+        changes.push({
+          field: k,
+          from: redact ? '•••' : before?.[k],
+          to: redact ? '•••' : patch[k],
+        });
       }
     });
     if (changes.length === 0) return null;

@@ -12,9 +12,17 @@
 import { state } from './state.js';
 import { StaffManager } from './staff.js';
 import { AuditManager, AuditEntities, AuditActions } from './audit.js';
-import { genSalt, hashPin, verifyPin, isValidPinFormat } from './crypto.js';
+import { genSalt, hashPin, verifyPin, isValidPinFormat, isLegacyPinHash } from './crypto.js';
 
 const SESSION_KEY = 'chill_rental_v1:_session';
+const ACTIVITY_KEY = 'chill_rental_v1:_last_activity';
+
+// Idle lock — all roles, 20 minutes without interaction. Per-device (localStorage),
+// like the session itself. Passwordless staff are exempt (nothing to re-enter).
+const IDLE_LIMIT_MS = 20 * 60 * 1000;
+const ACTIVITY_WRITE_THROTTLE_MS = 30 * 1000;
+
+let _lastTouch = 0; // in-memory mirror of ACTIVITY_KEY (throttles writes)
 
 // Role hierarchy — higher rank inherits everything below it.
 const ROLE_RANK = { staff: 1, admin: 2, manager: 3, system: 99 };
@@ -79,12 +87,56 @@ export const SessionManager = {
     const sess = { staffId: staff.id, name: staff.name, role: staff.role || 'staff', at: new Date().toISOString() };
     _cache = sess;
     writeSession(sess);
+    this.touchActivity(true); // fresh login/unlock resets the idle clock
     return sess;
   },
 
   logout() {
+    // Log BEFORE clearing so the audit actor is the user who logged out.
+    const s = this.current();
+    if (s) {
+      AuditManager.log({
+        entity: AuditEntities.USER, entityId: s.staffId, entityLabel: s.name,
+        action: AuditActions.LOGOUT,
+      });
+    }
     _cache = null;
     writeSession(null);
+  },
+
+  // ---- Idle lock (20 min, all roles) ----
+  // Record user interaction. Writes are throttled; pass force=true to bypass
+  // (login/unlock must always reset the clock).
+  touchActivity(force = false) {
+    const now = Date.now();
+    if (!force && now - _lastTouch < ACTIVITY_WRITE_THROTTLE_MS) return;
+    _lastTouch = now;
+    try { localStorage.setItem(ACTIVITY_KEY, String(now)); } catch (_) { /* ignore */ }
+  },
+
+  lastActivity() {
+    if (_lastTouch) return _lastTouch;
+    try { return Number(localStorage.getItem(ACTIVITY_KEY)) || 0; } catch (_) { return 0; }
+  },
+
+  // True when the authenticated user has been idle past the limit and must
+  // re-enter their PIN. Passwordless staff never lock (migration policy —
+  // there is no PIN to ask for).
+  idleExpired() {
+    if (!this.isAuthenticated()) return false;
+    const staff = StaffManager.get(this.current().staffId);
+    if (!staff || !staff.pinHash) return false;
+    const last = this.lastActivity();
+    return !!last && (Date.now() - last > IDLE_LIMIT_MS);
+  },
+
+  // Re-snapshot the session from the live staff record (e.g. after a role
+  // change for the logged-in user).
+  refresh() {
+    const s = this.current();
+    if (!s) return;
+    const staff = StaffManager.get(s.staffId);
+    if (staff) this._setSession(staff);
   },
 
   // ---- Login ----
@@ -104,6 +156,17 @@ export const SessionManager = {
           action: AuditActions.LOGIN_FAIL, note: 'wrong pin',
         });
         return { ok: false, reason: 'wrong_pin' };
+      }
+      // Lazy migration: a legacy SHA-256 hash that just verified is re-hashed
+      // with PBKDF2. Direct state.update (not StaffManager.update): the PIN
+      // itself is unchanged — internal format upgrade only, so no audit entry,
+      // but still synced (state.update bumps updatedAt + marks dirty).
+      if (isLegacyPinHash(s.pinHash)) {
+        try {
+          const pinSalt = genSalt();
+          const pinHash = await hashPin(pin, pinSalt);
+          state.update('staff', s.id, { pinHash, pinSalt });
+        } catch (_) { /* non-fatal — the legacy hash keeps working */ }
       }
     } else if (this.roleRequiresPin(s.role)) {
       // Elevated role (manager) with no PIN yet — passwordless login is not
@@ -143,14 +206,24 @@ export const SessionManager = {
   // manager and up. Admin/staff may remain passwordless during the migration.
   roleRequiresPin(role) { return this.rankOf(role) >= ROLE_RANK.manager; },
 
-  can(action, role = this.current()?.role) {
+  // Live role from the synced staff record — a demotion made on another device
+  // takes effect here on the next permission check, not only after re-login.
+  // Falls back to the session snapshot if the staff record is missing.
+  currentRole() {
+    const s = this.current();
+    if (!s) return undefined;
+    const staff = StaffManager.get(s.staffId);
+    return staff ? (staff.role || 'staff') : s.role;
+  },
+
+  can(action, role = this.currentRole()) {
     const need = ACTION_MIN_RANK[action] || 1;
     return this.rankOf(role) >= need;
   },
 
   // Can the current role open a given route? Routes without a `page.<route>`
   // entry are open to everyone (rank 1).
-  canAccessRoute(route, role = this.current()?.role) {
+  canAccessRoute(route, role = this.currentRole()) {
     return this.can(`page.${route}`, role);
   },
 
