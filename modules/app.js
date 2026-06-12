@@ -125,6 +125,9 @@ function renderRoute() {
   updateActiveKPI();
   updateBookingBadge();
 
+  // Fill any sync badge the freshly rendered page mounted
+  updateSyncStatus();
+
   // Close mobile drawer if open
   closeSidebar();
 
@@ -150,8 +153,9 @@ function updateBookingBadge() {
   el.style.display = n > 0 ? '' : 'none';
 }
 
-// Optional sync indicator — updates #sync-status if present in the DOM.
-// Safe no-op until that element is added to the topbar.
+// Sync indicator — updates every .js-sync-status mount (sidebar footer +
+// any page-rendered badge). Pages re-mount on render, so renderRoute()
+// re-applies the last known status.
 const SYNC_LABELS = {
   syncing:  { icon: '↻', text: 'Menyinkronkan…' },
   synced:   { icon: '✓', text: 'Tersinkron' },
@@ -159,13 +163,15 @@ const SYNC_LABELS = {
   offline:  { icon: '⚠', text: 'Offline (lokal)' },
   disabled: { icon: '',  text: '' },
 };
-function updateSyncStatus(status) {
-  const el = document.getElementById('sync-status');
-  if (!el) return;
+let lastSyncStatus = '';
+function updateSyncStatus(status = lastSyncStatus) {
+  lastSyncStatus = status;
   const s = SYNC_LABELS[status] || SYNC_LABELS.disabled;
-  el.textContent = s.icon ? `${s.icon} ${s.text}` : '';
-  el.dataset.syncStatus = status;
-  el.title = s.text;
+  document.querySelectorAll('.js-sync-status').forEach((el) => {
+    el.textContent = s.icon ? `${s.icon} ${s.text}` : '';
+    el.dataset.syncStatus = status;
+    el.title = s.text;
+  });
 }
 
 // ---------- Auth (Fase B.2) ----------
