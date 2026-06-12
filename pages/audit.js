@@ -5,34 +5,36 @@
 
 import { RentalManager, renderRentalBadge } from '../modules/rentals.js';
 import { MotorManager } from '../modules/motors.js';
-import { OwnerManager } from '../modules/owners.js';
-import { AuditManager, AuditEntities } from '../modules/audit.js';
+import { AuditManager } from '../modules/audit.js';
+import { SessionManager } from '../modules/session.js';
+import { Modal, Toast } from '../modules/ui/notify.js';
 import { formatIDR, formatDate, formatDateTime, escapeHTML, toCSV, downloadFile, bindSearchInput } from '../modules/utils.js';
 import { t } from '../modules/i18n.js';
 
 // ----- Filter state (per session, reset on page load) -----
 let currentTab = 'log';
 
+// YYYY-MM-DD in LOCAL time — toISOString() would shift to UTC and (in UTC+8)
+// turn "June 1" into "May 31", silently hiding month-edge rentals.
+const toLocalYMD = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 const defaultMonthRange = () => {
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const fmt = (d) => d.toISOString().slice(0, 10);
-  return { from: fmt(first), to: fmt(last) };
+  return { from: toLocalYMD(first), to: toLocalYMD(last) };
 };
 
 let logFilters = {
   ...defaultMonthRange(),
-  status: 'all',         // all | active | completed | cancelled
-  ownerId: 'all',
-  category: 'all',
-  cc: 'all',
-  surfrack: 'all',
-  staffGiver: 'all',
-  payment: 'all',
-  damage: 'all',         // all | yes | no
+  basis: 'start',        // start | finish — which date the range applies to
+  status: 'all',
   search: '',
 };
+
+const logDateOf = (r) =>
+  ((logFilters.basis === 'finish' ? (r.actualFinishDate || r.finishDate) : r.startDate) || '').slice(0, 10);
 
 let trailFilters = {
   entity: 'all',
@@ -41,17 +43,26 @@ let trailFilters = {
   ...defaultMonthRange(),
 };
 
+// Trail timestamps are UTC ISO; the date inputs are local calendar days.
+// Convert local-day boundaries to UTC so entries before 08:00 WITA don't
+// fall into the previous day.
+const trailQuery = () => ({
+  entity: trailFilters.entity === 'all' ? undefined : trailFilters.entity,
+  actorId: trailFilters.actor === 'all' ? undefined : trailFilters.actor,
+  fromISO: trailFilters.from ? new Date(trailFilters.from + 'T00:00:00').toISOString() : undefined,
+  toISO: trailFilters.to ? new Date(trailFilters.to + 'T23:59:59.999').toISOString() : undefined,
+  search: trailFilters.search || undefined,
+});
+
 // ----- Filter functions -----
 function applyLogFilter(rentals) {
   return rentals.filter(r => {
-    if (logFilters.from) {
-      const start = (r.startDate || '').slice(0, 10);
-      if (start && start < logFilters.from) return false;
-    }
-    if (logFilters.to) {
-      const start = (r.startDate || '').slice(0, 10);
-      if (start && start > logFilters.to) return false;
-    }
+    // Finish basis means "actually returned" — an active rental's estimated
+    // finish date must not count as a completed stay.
+    if (logFilters.basis === 'finish' && r.status !== 'returned' && r.status !== 'completed') return false;
+    const d = logDateOf(r);
+    if (logFilters.from && d && d < logFilters.from) return false;
+    if (logFilters.to && d && d > logFilters.to) return false;
     if (logFilters.status !== 'all') {
       const isReturned = r.status === 'returned' || r.status === 'completed';
       switch (logFilters.status) {
@@ -73,21 +84,6 @@ function applyLogFilter(rentals) {
           if (r.status !== logFilters.status) return false;
       }
     }
-    if (logFilters.ownerId !== 'all' && r.ownerId !== logFilters.ownerId) return false;
-    if (logFilters.payment !== 'all' && r.paymentMethod !== logFilters.payment) return false;
-    if (logFilters.damage === 'yes' && !r.newDamage) return false;
-    if (logFilters.damage === 'no' && r.newDamage) return false;
-    if (logFilters.staffGiver !== 'all' && (r.staffGivesKey || '').toUpperCase() !== logFilters.staffGiver) return false;
-
-    // Filter by motor (category, cc, surfrack)
-    if (logFilters.category !== 'all' || logFilters.cc !== 'all' || logFilters.surfrack !== 'all') {
-      const motor = MotorManager.get(r.motorId);
-      if (logFilters.category !== 'all' && motor?.category !== logFilters.category) return false;
-      if (logFilters.cc !== 'all' && motor?.cc !== logFilters.cc) return false;
-      if (logFilters.surfrack === 'true' && !motor?.hasSurfrack) return false;
-      if (logFilters.surfrack === 'false' && motor?.hasSurfrack) return false;
-    }
-
     if (logFilters.search) {
       const q = logFilters.search.toLowerCase();
       const hay = `${r.guestName || ''} ${r.motorPlate || ''} ${r.ownerName || ''}`.toLowerCase();
@@ -97,27 +93,8 @@ function applyLogFilter(rentals) {
   });
 }
 
-function renderActiveFilterChips() {
-  const chips = [];
-  if (logFilters.from || logFilters.to) chips.push({ key: 'date', label: `📅 ${logFilters.from || '...'} → ${logFilters.to || '...'}` });
-  if (logFilters.status !== 'all') chips.push({ key: 'status', label: `Status: ${logFilters.status}` });
-  if (logFilters.ownerId !== 'all') {
-    const o = OwnerManager.get(logFilters.ownerId);
-    chips.push({ key: 'ownerId', label: `Owner: ${o?.name || logFilters.ownerId}` });
-  }
-  if (logFilters.category !== 'all') chips.push({ key: 'category', label: `${t('chip_category')}: ${logFilters.category}` });
-  if (logFilters.cc !== 'all') chips.push({ key: 'cc', label: `CC: ${logFilters.cc}` });
-  if (logFilters.surfrack !== 'all') chips.push({ key: 'surfrack', label: logFilters.surfrack === 'true' ? t('chip_surfrack_with') : t('chip_surfrack_without') });
-  if (logFilters.staffGiver !== 'all') chips.push({ key: 'staffGiver', label: `Staff: ${logFilters.staffGiver}` });
-  if (logFilters.payment !== 'all') chips.push({ key: 'payment', label: `${t('chip_payment')}: ${logFilters.payment}` });
-  if (logFilters.damage !== 'all') chips.push({ key: 'damage', label: `Damage: ${logFilters.damage === 'yes' ? t('damage_yes') : t('damage_no')}` });
-  if (logFilters.search) chips.push({ key: 'search', label: `🔎 "${logFilters.search}"` });
-  return chips;
-}
-
 function resetLogFilters() {
-  logFilters = { ...defaultMonthRange(), status: 'all', ownerId: 'all', category: 'all', cc: 'all',
-    surfrack: 'all', staffGiver: 'all', payment: 'all', damage: 'all', search: '' };
+  logFilters = { ...defaultMonthRange(), basis: 'start', status: 'all', search: '' };
 }
 
 // ====================================================================
@@ -125,20 +102,12 @@ function resetLogFilters() {
 // ====================================================================
 export function renderAudit() {
   const allRentals = RentalManager.list();
-  const owners = OwnerManager.list();
-  const ccList = [...new Set(MotorManager.list().map(m => m.cc).filter(Boolean))];
-  const staffList = [...new Set(allRentals.map(r => (r.staffGivesKey || '').toUpperCase()).filter(Boolean))];
-  const paymentList = [...new Set(allRentals.map(r => r.paymentMethod).filter(Boolean))];
-
-  const filtered = applyLogFilter(allRentals).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+  const filtered = applyLogFilter(allRentals).sort((a, b) => logDateOf(b).localeCompare(logDateOf(a)));
 
   const isDone = (r) => r.status === 'returned' || r.status === 'completed';
   const totalRevenue = filtered.filter(isDone).reduce((s, r) => s + (r.totalCost || 0), 0);
   const totalCommission = filtered.filter(isDone).reduce((s, r) => s + (r.commission || 0), 0);
   const totalPto = filtered.filter(isDone).reduce((s, r) => s + (r.payToOwner || 0), 0);
-  const totalDamage = filtered.reduce((s, r) => s + (r.damageCharge || 0), 0);
-
-  const chips = renderActiveFilterChips();
 
   return `
     <div class="page__header">
@@ -159,118 +128,59 @@ export function renderAudit() {
       <button class="segmented__opt ${currentTab === 'trail' ? 'is-active' : ''}" data-tab="trail">${t('page_trail_changes')} (${AuditManager.list().length})</button>
     </div>
 
-    ${currentTab === 'log' ? renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, totalRevenue, totalCommission, totalPto, totalDamage) : renderTrailTab()}
+    ${currentTab === 'log' ? renderLogTab(filtered, totalRevenue, totalCommission, totalPto) : renderTrailTab()}
   `;
 }
 
-function renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, totalRevenue, totalCommission, totalPto, totalDamage) {
+function renderLogTab(filtered, totalRevenue, totalCommission, totalPto) {
+  // "Active" and "Cancelled" can never match the finish basis (which implies
+  // returned). All options are always rendered; the impossible ones are
+  // hidden+disabled so the basis listener can toggle them without a rerender.
+  const isFinish = logFilters.basis === 'finish';
+  const statusOptions = [
+    ['all', t('page_all'), false],
+    ['active', t('filter_status_active'), true],
+    ['awaiting-payment', t('filter_status_awaiting_payment'), false],
+    ['awaiting-settle', t('filter_status_awaiting_settle'), false],
+    ['damage-pending', t('filter_status_damage_pending'), false],
+    ['fully-done', t('filter_status_fully_done'), false],
+    ['cancelled', t('filter_status_cancelled'), true],
+  ];
+
   return `
     <!-- Filter panel -->
     <div class="card" style="margin-bottom:16px;padding:14px">
-      <details ${chips.length > 0 ? 'open' : ''}>
-        <summary style="cursor:pointer;font-weight:700;margin-bottom:12px">
-          🔍 ${t('form_filter')} ${chips.length > 0 ? `<span class="badge badge--brand" style="margin-left:6px">${chips.length} ${t('page_filter_active')}</span>` : ''}
-        </summary>
-        <div class="stack" style="gap:12px;margin-top:12px">
-          <div class="field-group">
-            <div class="field">
-              <label class="field__label">${t('page_filter_date_from')}</label>
-              <input class="input" type="date" id="f-from" value="${logFilters.from}" />
-            </div>
-            <div class="field">
-              <label class="field__label">${t('page_filter_date_to')}</label>
-              <input class="input" type="date" id="f-to" value="${logFilters.to}" />
-            </div>
-          </div>
-          <div class="field-group">
-            <div class="field">
-              <label class="field__label">${t('page_filter_status')}</label>
-              <select id="f-status" class="select">
-                <option value="all" ${logFilters.status === 'all' ? 'selected' : ''}>${t('page_all')}</option>
-                <option value="active" ${logFilters.status === 'active' ? 'selected' : ''}>${t('filter_status_active')}</option>
-                <option value="awaiting-payment" ${logFilters.status === 'awaiting-payment' ? 'selected' : ''}>${t('filter_status_awaiting_payment')}</option>
-                <option value="awaiting-settle" ${logFilters.status === 'awaiting-settle' ? 'selected' : ''}>${t('filter_status_awaiting_settle')}</option>
-                <option value="damage-pending" ${logFilters.status === 'damage-pending' ? 'selected' : ''}>${t('filter_status_damage_pending')}</option>
-                <option value="fully-done" ${logFilters.status === 'fully-done' ? 'selected' : ''}>${t('filter_status_fully_done')}</option>
-                <option value="cancelled" ${logFilters.status === 'cancelled' ? 'selected' : ''}>${t('filter_status_cancelled')}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label class="field__label">${t('page_filter_owner')}</label>
-              <select id="f-owner" class="select">
-                <option value="all">${t('page_all')}</option>
-                ${owners.map(o => `<option value="${o.id}" ${logFilters.ownerId === o.id ? 'selected' : ''}>${escapeHTML(o.name)}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          <div class="field-group">
-            <div class="field">
-              <label class="field__label">${t('page_filter_category')}</label>
-              <select id="f-cat" class="select">
-                <option value="all" ${logFilters.category === 'all' ? 'selected' : ''}>${t('page_all')}</option>
-                <option value="A" ${logFilters.category === 'A' ? 'selected' : ''}>A — ${t('cat_property')}</option>
-                <option value="B" ${logFilters.category === 'B' ? 'selected' : ''}>B — ${t('cat_staff')}</option>
-                <option value="C" ${logFilters.category === 'C' ? 'selected' : ''}>C — ${t('cat_non_staff')}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label class="field__label">${t('page_filter_cc')}</label>
-              <select id="f-cc" class="select">
-                <option value="all">${t('page_all')}</option>
-                ${ccList.map(c => `<option value="${escapeHTML(c)}" ${logFilters.cc === c ? 'selected' : ''}>${escapeHTML(c)} cc</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          <div class="field-group">
-            <div class="field">
-              <label class="field__label">${t('page_filter_surfrack')}</label>
-              <select id="f-sr" class="select">
-                <option value="all" ${logFilters.surfrack === 'all' ? 'selected' : ''}>${t('page_all')}</option>
-                <option value="true" ${logFilters.surfrack === 'true' ? 'selected' : ''}>${t('filter_surfrack_yes')}</option>
-                <option value="false" ${logFilters.surfrack === 'false' ? 'selected' : ''}>${t('filter_surfrack_no')}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label class="field__label">${t('page_filter_staff_key')}</label>
-              <select id="f-staff" class="select">
-                <option value="all">${t('page_all')}</option>
-                ${staffList.map(s => `<option value="${escapeHTML(s)}" ${logFilters.staffGiver === s ? 'selected' : ''}>${escapeHTML(s)}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          <div class="field-group">
-            <div class="field">
-              <label class="field__label">${t('page_filter_payment')}</label>
-              <select id="f-pay" class="select">
-                <option value="all">${t('page_all')}</option>
-                ${paymentList.map(p => `<option value="${escapeHTML(p)}" ${logFilters.payment === p ? 'selected' : ''}>${escapeHTML(p)}</option>`).join('')}
-              </select>
-            </div>
-            <div class="field">
-              <label class="field__label">${t('page_filter_damage')}</label>
-              <select id="f-dmg" class="select">
-                <option value="all" ${logFilters.damage === 'all' ? 'selected' : ''}>${t('page_all')}</option>
-                <option value="yes" ${logFilters.damage === 'yes' ? 'selected' : ''}>${t('damage_yes')}</option>
-                <option value="no" ${logFilters.damage === 'no' ? 'selected' : ''}>${t('damage_no')}</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <label class="field__label">${t('page_filter_search')}</label>
-            <input class="input" type="search" id="f-search" placeholder="${t('page_filter_search_placeholder')}" value="${escapeHTML(logFilters.search)}" />
-          </div>
-          <div class="row" style="gap:8px;margin-top:4px">
-            <button class="btn btn--ghost btn--sm" id="aud-reset">${t('page_reset_filter')}</button>
-            <button class="btn btn--sm" id="aud-apply">${t('page_apply')}</button>
-          </div>
+      <div class="field-group" style="align-items:flex-end;flex-wrap:wrap">
+        <div class="field">
+          <label class="field__label">${t('page_filter_basis')}</label>
+          <select id="f-basis" class="select">
+            <option value="start" ${logFilters.basis === 'start' ? 'selected' : ''}>${t('filter_basis_start')}</option>
+            <option value="finish" ${logFilters.basis === 'finish' ? 'selected' : ''}>${t('filter_basis_finish')}</option>
+          </select>
         </div>
-      </details>
-
-      ${chips.length > 0 ? `
-        <div class="row" style="gap:6px;margin-top:12px;flex-wrap:wrap">
-          ${chips.map(c => `<span class="chip" data-remove-chip="${c.key}" style="cursor:pointer">${escapeHTML(c.label)} ✕</span>`).join('')}
+        <div class="field">
+          <label class="field__label">${t('page_filter_status')}</label>
+          <select id="f-status" class="select">
+            ${statusOptions.map(([v, label, hideOnFinish]) => `<option value="${v}" ${logFilters.status === v ? 'selected' : ''} ${hideOnFinish && isFinish ? 'hidden disabled' : ''}>${label}</option>`).join('')}
+          </select>
         </div>
-      ` : ''}
+        <div class="field">
+          <label class="field__label">${t('page_filter_date_from')}</label>
+          <input class="input" type="date" id="f-from" value="${logFilters.from}" />
+        </div>
+        <div class="field">
+          <label class="field__label">${t('page_filter_date_to')}</label>
+          <input class="input" type="date" id="f-to" value="${logFilters.to}" />
+        </div>
+        <div class="field" style="flex:1;min-width:180px">
+          <label class="field__label">${t('page_filter_search')}</label>
+          <input class="input" type="search" id="f-search" placeholder="${t('page_filter_search_placeholder')}" value="${escapeHTML(logFilters.search)}" />
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn btn--sm" id="aud-apply">${t('page_apply')}</button>
+          <button class="btn btn--ghost btn--sm" id="aud-reset">${t('page_reset_filter')}</button>
+        </div>
+      </div>
     </div>
 
     <!-- Summary -->
@@ -292,7 +202,8 @@ function renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, t
         <table class="table">
           <thead>
             <tr>
-              <th>${t('th_date')}</th>
+              <th>${t('csv_start_date')}</th>
+              <th>${t('csv_end_date')}</th>
               <th>${t('th_guest')}</th>
               <th>Motor</th>
               <th>Owner</th>
@@ -300,6 +211,8 @@ function renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, t
               <th>${t('th_days')}</th>
               <th style="text-align:right">Total</th>
               <th style="text-align:right">${t('th_commission')}</th>
+              <th style="text-align:right">${t('detail_pay_owner')}</th>
+              <th>${t('csv_payment_method')}</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -309,6 +222,7 @@ function renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, t
               return `
                 <tr data-action="open-rental" data-id="${r.id}" style="cursor:pointer">
                   <td>${formatDate(r.startDate)}</td>
+                  <td>${r.actualFinishDate ? formatDate(r.actualFinishDate) : (r.finishDate ? `<span class="muted">${formatDate(r.finishDate)}</span>` : '—')}</td>
                   <td>
                     <strong>${escapeHTML(r.guestName)}</strong>
                     ${r.newDamage ? '<span class="badge badge--danger" style="margin-left:6px;font-size:10px">DMG</span>' : ''}
@@ -319,6 +233,8 @@ function renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, t
                   <td>${r.totalDays || '—'}</td>
                   <td style="text-align:right">${r.status === 'active' ? '<span class="muted">—</span>' : '<strong>' + formatIDR(r.totalCost) + '</strong>'}</td>
                   <td style="text-align:right">${r.status === 'active' ? '<span class="muted">—</span>' : formatIDR(r.commission)}</td>
+                  <td style="text-align:right">${r.status === 'active' ? '<span class="muted">—</span>' : formatIDR(r.payToOwner)}</td>
+                  <td>${escapeHTML(r.paymentMethod || '—')}</td>
                   <td>${renderRentalBadge(r)}</td>
                 </tr>
               `;
@@ -332,13 +248,7 @@ function renderLogTab(filtered, owners, ccList, staffList, paymentList, chips, t
 
 function renderTrailTab() {
   const allActors = AuditManager.distinctActors();
-  const entries = AuditManager.filter({
-    entity: trailFilters.entity === 'all' ? undefined : trailFilters.entity,
-    actorId: trailFilters.actor === 'all' ? undefined : trailFilters.actor,
-    fromISO: trailFilters.from ? trailFilters.from + 'T00:00:00.000Z' : undefined,
-    toISO: trailFilters.to ? trailFilters.to + 'T23:59:59.999Z' : undefined,
-    search: trailFilters.search || undefined,
-  });
+  const entries = AuditManager.filter(trailQuery());
 
   return `
     <div class="card" style="margin-bottom:16px;padding:14px">
@@ -362,6 +272,8 @@ function renderTrailTab() {
               <option value="rental" ${trailFilters.entity === 'rental' ? 'selected' : ''}>Rental</option>
               <option value="owner" ${trailFilters.entity === 'owner' ? 'selected' : ''}>Owner</option>
               <option value="damage" ${trailFilters.entity === 'damage' ? 'selected' : ''}>Damage</option>
+              <option value="booking" ${trailFilters.entity === 'booking' ? 'selected' : ''}>Booking</option>
+              <option value="user" ${trailFilters.entity === 'user' ? 'selected' : ''}>User</option>
               <option value="system" ${trailFilters.entity === 'system' ? 'selected' : ''}>System</option>
             </select>
           </div>
@@ -377,6 +289,15 @@ function renderTrailTab() {
           <label class="field__label">${t('page_search')}</label>
           <input class="input" type="search" id="t-search" placeholder="${t('page_search_placeholder')}" value="${escapeHTML(trailFilters.search || '')}" />
         </div>
+        ${SessionManager.can('audit.purge') ? `
+          <div class="row" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div class="field">
+              <label class="field__label">${t('trail_purge_label')}</label>
+              <input class="input" type="date" id="t-purge-date" value="${toLocalYMD(new Date(Date.now() - 7 * 86400000))}" />
+            </div>
+            <button class="btn btn--danger btn--sm" id="t-purge">${t('trail_purge_btn')}</button>
+          </div>
+        ` : ''}
       </div>
     </div>
 
@@ -414,16 +335,9 @@ function renderTrailTab() {
   `;
 }
 
-function statusBadge(s) {
-  if (s === 'active') return `<span class="badge badge--success">${t('badge_active')}</span>`;
-  if (s === 'returned' || s === 'completed') return '<span class="badge">Returned</span>';
-  if (s === 'cancelled') return `<span class="badge badge--danger">${t('badge_cancelled')}</span>`;
-  return '<span class="badge">' + escapeHTML(s) + '</span>';
-}
-
 function actionBadgeClass(a) {
   if (a === 'create' || a === 'check-in' || a === 'seed' || a === 'booking-confirm' || a === 'booking-checked-in') return 'badge--success';
-  if (a === 'delete' || a === 'cancel' || a === 'reset-all' || a === 'login-fail' || a === 'booking-reject' || a === 'booking-cancel') return 'badge--danger';
+  if (a === 'delete' || a === 'cancel' || a === 'reset-all' || a === 'login-fail' || a === 'booking-reject' || a === 'booking-cancel' || a === 'audit-purge') return 'badge--danger';
   if (a === 'update') return 'badge--warning';
   return '';
 }
@@ -440,38 +354,38 @@ export function setupAuditPage(rerender) {
   });
 
   if (currentTab === 'log') {
-    // Apply filter button
-    content.querySelector('#aud-apply')?.addEventListener('click', () => {
-      logFilters = {
-        from: content.querySelector('#f-from').value,
-        to: content.querySelector('#f-to').value,
-        status: content.querySelector('#f-status').value,
-        ownerId: content.querySelector('#f-owner').value,
-        category: content.querySelector('#f-cat').value,
-        cc: content.querySelector('#f-cc').value,
-        surfrack: content.querySelector('#f-sr').value,
-        staffGiver: content.querySelector('#f-staff').value,
-        payment: content.querySelector('#f-pay').value,
-        damage: content.querySelector('#f-dmg').value,
-        search: content.querySelector('#f-search').value.trim(),
-      };
+    // Filters only apply on the Apply button (or Enter in the search box).
+    const applyFilters = () => {
+      logFilters.basis = content.querySelector('#f-basis').value;
+      logFilters.status = content.querySelector('#f-status').value;
+      logFilters.from = content.querySelector('#f-from').value;
+      logFilters.to = content.querySelector('#f-to').value;
+      logFilters.search = content.querySelector('#f-search').value.trim();
+      if (logFilters.basis === 'finish' && (logFilters.status === 'active' || logFilters.status === 'cancelled')) {
+        logFilters.status = 'all';
+      }
       rerender();
+    };
+    content.querySelector('#aud-apply')?.addEventListener('click', applyFilters);
+    content.querySelector('#f-search')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') applyFilters();
+    });
+
+    // Changing the basis immediately hides/shows the incompatible status
+    // options (DOM only — data is not filtered until Apply).
+    content.querySelector('#f-basis')?.addEventListener('change', (e) => {
+      const finish = e.target.value === 'finish';
+      const statusSel = content.querySelector('#f-status');
+      statusSel.querySelectorAll('option[value="active"], option[value="cancelled"]').forEach(o => {
+        o.hidden = finish;
+        o.disabled = finish;
+      });
+      if (finish && (statusSel.value === 'active' || statusSel.value === 'cancelled')) statusSel.value = 'all';
     });
 
     content.querySelector('#aud-reset')?.addEventListener('click', () => {
       resetLogFilters();
       rerender();
-    });
-
-    // Chip remove (per filter key)
-    content.querySelectorAll('[data-remove-chip]').forEach(c => {
-      c.addEventListener('click', () => {
-        const k = c.dataset.removeChip;
-        if (k === 'date') { logFilters.from = ''; logFilters.to = ''; }
-        else if (k === 'search') logFilters.search = '';
-        else if (logFilters[k] !== undefined) logFilters[k] = 'all';
-        rerender();
-      });
     });
 
     // Export CSV
@@ -515,15 +429,28 @@ export function setupAuditPage(rerender) {
       rerender();
     });
 
+    // Manager-only: delete all trail entries before the chosen date
+    content.querySelector('#t-purge')?.addEventListener('click', async () => {
+      const val = content.querySelector('#t-purge-date')?.value;
+      if (!val) return;
+      const cutoff = new Date(val + 'T00:00:00').toISOString();
+      const count = AuditManager.list().filter(e => (e.timestamp || '') < cutoff).length;
+      if (count === 0) { Toast.show(t('trail_purge_none')); return; }
+      const ok = await Modal.confirm({
+        title: t('trail_purge_confirm_title'),
+        message: t('trail_purge_confirm_msg', { count, date: formatDate(val) }),
+        confirmText: t('trail_purge_btn'),
+        variant: 'danger',
+      });
+      if (!ok) return;
+      const n = AuditManager.purgeBefore(cutoff);
+      Toast.success(t('trail_purge_done', { count: n }));
+      rerender();
+    });
+
     // Export trail
     content.querySelector('#aud-export')?.addEventListener('click', () => {
-      const entries = AuditManager.filter({
-        entity: trailFilters.entity === 'all' ? undefined : trailFilters.entity,
-        actorId: trailFilters.actor === 'all' ? undefined : trailFilters.actor,
-        fromISO: trailFilters.from ? trailFilters.from + 'T00:00:00.000Z' : undefined,
-        toISO: trailFilters.to ? trailFilters.to + 'T23:59:59.999Z' : undefined,
-        search: trailFilters.search || undefined,
-      });
+      const entries = AuditManager.filter(trailQuery());
       const csv = toCSV(entries, [
         { label: t('csv_trail_time'), value: e => formatDateTime(e.timestamp) },
         { label: 'Entity', value: 'entity' },
